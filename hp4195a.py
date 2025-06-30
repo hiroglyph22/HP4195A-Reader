@@ -1,14 +1,12 @@
 import sys
 import os
 import time
-import telnetlib
+# Telnetlib is no longer needed
 import multiprocessing
 import numpy as np
 import logging
 import logging.handlers
-import numpy.core._methods
-import numpy.lib.format
-
+import pyvisa # Import the new library
 
 class hp4195a(multiprocessing.Process):
     def __init__(self, command_queue, message_queue, data_queue, logger_queue):
@@ -22,12 +20,12 @@ class hp4195a(multiprocessing.Process):
         self.phase_data = []
         self.freq_data = []
 
-        self.host = 'bi-gpib-01.dyndns.cern.ch'
-        self.port = '1234'
-        self.gpib_addr = 11
-
-        self.telnet_id = 'Prologix GPIB-ETHERNET Controller version 01.06.06.00'
+        # --- MODIFIED: Replaced Telnet/GPIB attributes with VISA resource name ---
+        # Replace this with the address you found in Step 2
+        self.visa_resource_name = 'GPIB0::11::INSTR' 
         self.device_id = 'HP4195A'
+        self.instrument = None # This will hold the connection to the instrument
+        self.rm = None # This is the pyvisa resource manager
 
     def run(self):
         '''
@@ -43,17 +41,18 @@ class hp4195a(multiprocessing.Process):
         while True:
             self.command = self.command_queue.get()
             self.logger.info('Received \"{}\" from GUI'.format(self.command))
-            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
-
+            
+            # --- MODIFIED: Calls new connect/disconnect methods ---
             if self.command == 'connect':
-                self.logger.info('Connecting to HP4195A')
-                self.telnet_connect()
+                self.logger.info('Connecting to HP4195A via VISA')
+                self.visa_connect()
 
             elif self.command == 'disconnect':
                 self.logger.info('Disconnecting from HP4195A')
-                self.telnet_disconnect()
+                self.visa_disconnect()
 
             elif self.command == 'start_acquisition':
+                # This part of the logic remains the same
                 self.logger.info('Starting data acquisition')
                 if self.acquire_mag_data():
                     if self.acquire_phase_data():
@@ -92,34 +91,38 @@ class hp4195a(multiprocessing.Process):
                 self.logger.info('Response: {}'.format(self.response))
                 self.data_queue.put(self.response)
 
-    def telnet_connect(self):
-        self.logger.info('Starting Telnet communications')
-        self.tn = telnetlib.Telnet(self.host, self.port)
-        if self.send_query('++ver') == self.telnet_id:
-            self.logger.info('Successfully established connection with {}'.format(self.telnet_id))
-            self.init_device()
-        else:
-            self.tn.close()
-            self.logger.warning('Failed to setup Telnet communications')
+    # --- NEW METHOD: Replaces telnet_connect ---
+    def visa_connect(self):
+        self.logger.info('Starting VISA communications')
+        try:
+            self.rm = pyvisa.ResourceManager()
+            self.instrument = self.rm.open_resource(self.visa_resource_name)
+            # Set a timeout (in milliseconds)
+            self.instrument.timeout = 5000 
+            # Check instrument ID
+            identity = self.instrument.query('ID?')
+            self.logger.info(f"Connected to: {identity}")
+            if self.device_id in identity:
+                self.logger.info('Successfully found {}'.format(self.device_id))
+                self.message_queue.put(True)
+            else:
+                self.logger.warning(f'Device ID mismatch. Expected {self.device_id}, got {identity}')
+                self.instrument.close()
+                self.message_queue.put(False)
+        except pyvisa.errors.VisaIOError as e:
+            self.logger.error(f"VISA Error: {e}")
             self.message_queue.put(False)
 
-    def telnet_disconnect(self):
-        self.logger.info('Disconnecting Telnet connection')
-        self.tn.close()
+    # --- NEW METHOD: Replaces telnet_disconnect ---
+    def visa_disconnect(self):
+        self.logger.info('Disconnecting VISA connection')
+        if self.instrument:
+            self.instrument.close()
+            self.instrument = None
+        self.rm = None
         self.message_queue.put(True)
 
-    def init_device(self):
-        self.logger.info('Querying HP4195A')
-        if self.send_query('ID?') == self.device_id:
-            self.logger.info('Successfully found {}'.format(self.device_id))
-            self.logger.info('Initialising HP4195A')
-            self.send_command('++auto 1')
-            self.message_queue.put(True)
-        else:
-            self.tn.close()
-            self.logger.warning('Error unrecognised device')
-            self.message_queue.put(False)
-
+    # --- MODIFIED: These methods now use VISA commands ---
     def acquire_mag_data(self):
         raw_mag_data = self.send_query('A?')
         mag_data = np.fromstring(raw_mag_data, dtype=float, sep=',')
@@ -128,11 +131,11 @@ class hp4195a(multiprocessing.Process):
             return True
 
     def acquire_phase_data(self):
-            raw_phase_data = self.send_query('B?')
-            phase_data = np.fromstring(raw_phase_data, dtype=float, sep=',')
-            if len(phase_data) > 0:
-                self.phase_data = phase_data
-                return True
+        raw_phase_data = self.send_query('B?')
+        phase_data = np.fromstring(raw_phase_data, dtype=float, sep=',')
+        if len(phase_data) > 0:
+            self.phase_data = phase_data
+            return True
 
     def acquire_freq_data(self):
         raw_freq_data = self.send_query('X?')
@@ -141,25 +144,21 @@ class hp4195a(multiprocessing.Process):
             self.freq_data = freq_data
             return True
 
+    # --- MODIFIED: Replaces telnet command with VISA write ---
     def send_command(self, command):
-        cmd = command + '\r\n'
-        self.logger.info('Sent \"{}\"'.format(cmd.rstrip()))
-        self.tn.write(cmd.encode('ascii'))
+        self.logger.info('Sent \"{}\"'.format(command))
+        if self.instrument:
+            self.instrument.write(command)
 
+    # --- MODIFIED: Replaces telnet query with VISA query ---
     def send_query(self, command):
-        self.send_command(command)
-        data = ['init']
-        response = []
-        while data != []:
-            raw_data = self.tn.read_until(b'\r\n', timeout=3).decode('ascii')
-            self.logger.info('Received {} of {}'.format(len(raw_data), type(raw_data)))
-            #raw_data = self.tn.read_until(b'EOF', timeout=4).decode('ascii')
-            data = raw_data.splitlines()
-            if data != []:
-                response.append(data[0])
-
-        if len(response) > 0:
-            ret = response[0]
-        else:
-             ret = 'Command failed'
-        return ret
+        self.logger.info('Querying \"{}\"'.format(command))
+        if self.instrument:
+            try:
+                response = self.instrument.query(command)
+                self.logger.info('Received {} of {}'.format(len(response), type(response)))
+                return response.strip()
+            except pyvisa.errors.VisaIOError as e:
+                self.logger.error(f"VISA Query Error: {e}")
+                return "Query failed"
+        return "Not connected"

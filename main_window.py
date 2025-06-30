@@ -216,9 +216,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Disconnecting from HP4195A')
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             self.command_queue.put('disconnect')
-            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
             if self.message_queue.get():
-                self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
+                # self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
                 self.logger.info('Successfully disconnected from HP4195A')
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Connect")
@@ -230,7 +230,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Attempting to connect to HP4195A')
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             self.command_queue.put('connect')
-            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
             if self.message_queue.get():
                 self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
                 self.logger.info('Successfully connected to HP4195A')
@@ -246,9 +246,9 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.acquire_button.setEnabled(False)
         self.command_queue.put('start_acquisition')
-        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+        # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         reply = self.message_queue.get()
-        self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
+        # self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
         if reply:
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
@@ -268,9 +268,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def send_command(self):
         command = self.command_box.text()
         self.command_queue.put('send_command')
-        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+       # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         self.command_queue.put(command)
-        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+        # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         response = self.data_queue.get()
         self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
@@ -342,22 +342,27 @@ class PlotCanvas(FigureCanvas):
         self.plot()
 
     def plot(self):
+        from queue import Empty
         if self.persist == False:
             self.mag_ax.clear()
             self.phase_ax.clear()
 
-        if self.data_queue.qsize():
-            self.mag_data = self.data_queue.get()
-            self.phase_data = self.data_queue.get()
-            self.freq_data = self.data_queue.get()
+        try:
+            # Try to get data without blocking
+            self.mag_data = self.data_queue.get_nowait()
+            self.phase_data = self.data_queue.get_nowait()
+            self.freq_data = self.data_queue.get_nowait()
+        except Empty:
+            # If the queue is empty, do nothing and just redraw the existing data
+            pass
 
         self.mag_ax.set_ylabel('Magnitude (dB)')
         self.phase_ax.set_ylabel('Phase (deg)')
         self.mag_ax.set_xlabel('Frequency (Hz)')
-        self.phase_ax.set_xlim(np.min(self.freq_data),                                                 np.max(self.freq_data))
-        self.phase_ax.set_ylim(np.min(self.phase_data)-20,                                             np.max(self.phase_data)+20)
+        self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
+        self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
         self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
-        self.mag_ax.set_ylim(np.min(self.mag_data)-20,                                               np.max(self.mag_data)+20)
+        self.mag_ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
 
         if self.magnitude == True:
             self.mag_ax.grid(color='0.9', linestyle='--', linewidth=1)
