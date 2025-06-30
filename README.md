@@ -6,12 +6,12 @@ A Python program for connecting to and interfacing with a HP4195A Network/Spectr
 
 ### Hardware
 - HP4195A Network/Spectrum Analyser
-- Prologix GPIB-ETHERNET (GPIB-LAN) Controller 1.2
+- NI HP-IB GPIB-USB-HS IEEE488 Controller
 
 ### Software
 - Python 3.0 +
 - PyQt5 (+ PyQtWebEngine)
-- telnetlib
+- PyVISA
 - NumPy
 - Matplotlib
 - Markdown
@@ -23,8 +23,6 @@ The following documents provide useful information regarding the 4195A Network/S
 * [4195A-4395A GPIB Command Correspondence Table](http://www.tentech.ca/downloads/hardware/HP4195A/4195A-4395A%20GPIB%20Command%20Correspondance.pdf)
 
 * [4195A Network/Spectrum Analyser Operation Manual](https://www.keysight.com/upload/cmc_upload/All/04195_90000_final.pdf)
-
-* [Prologix GPIB-ETHERNET Controller User Manual](http://prologix.biz/downloads/PrologixGpibEthernetManual.pdf)
 
 ### Installing
 
@@ -39,10 +37,6 @@ The software can also be built into an executable with cx_Freeze. From the proje
 ```
 python setup.py build
 ```
-
-### Author(s)
-
-* [Will Frank](https://github.com/w-frank)
 
 ### License
 

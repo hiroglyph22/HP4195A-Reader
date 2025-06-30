@@ -7,6 +7,7 @@ import numpy as np
 import logging
 import logging.handlers
 import pyvisa # Import the new library
+import csv # <-- ADDED: Import the csv module
 
 class hp4195a(multiprocessing.Process):
     def __init__(self, command_queue, message_queue, data_queue, logger_queue):
@@ -26,6 +27,26 @@ class hp4195a(multiprocessing.Process):
         self.device_id = 'HP4195A'
         self.instrument = None # This will hold the connection to the instrument
         self.rm = None # This is the pyvisa resource manager
+
+    # --- ADDED: Method to write acquired data to a CSV file ---
+    def _write_data_to_csv(self, filename='frequency_amplitude_data.csv'):
+        """
+        Writes the current frequency and magnitude data to a CSV file.
+        This will overwrite the file each time new data is acquired.
+        """
+        try:
+            # Use np.column_stack to pair frequency and magnitude data
+            data_to_write = np.column_stack((self.freq_data, self.mag_data))
+            
+            with open(filename, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                # Write the header row
+                writer.writerow(['Frequency (Hz)', 'Amplitude (dB)'])
+                # Write all the data rows
+                writer.writerows(data_to_write)
+            self.logger.info(f"Successfully streamed data to {filename}")
+        except Exception as e:
+            self.logger.error(f"Failed to write data to CSV file {filename}: {e}")
 
     def run(self):
         '''
@@ -73,6 +94,11 @@ class hp4195a(multiprocessing.Process):
 
                 if mag_check and phase_check:
                     self.logger.info('Data length check passed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
+                    
+                    # --- MODIFICATION: Write data to CSV after successful acquisition ---
+                    self._write_data_to_csv()
+                    # --- END MODIFICATION ---
+
                     self.message_queue.put(True)
                     self.data_queue.put(self.mag_data)
                     self.data_queue.put(self.phase_data)
