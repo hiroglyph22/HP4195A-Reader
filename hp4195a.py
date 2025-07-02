@@ -86,6 +86,11 @@ class hp4195a(multiprocessing.Process):
                     self.logger.warning('Data length check failed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
                     self.message_queue.put(False)
 
+            elif self.command == 'set_center_frequency':
+                center_freq_hz = self.command_queue.get()
+                command_string = f"CENTER = {center_freq_hz} HZ"
+                self.send_command(command_string)
+
             elif self.command == 'send_command':
                 self.command =  self.command_queue.get()
                 self.logger.info('Sending GPIB command: {}'.format(self.command))

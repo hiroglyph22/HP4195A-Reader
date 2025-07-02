@@ -63,7 +63,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_menu_bar()
         self.generate_autofind_peak_button()
         self.generate_pause_button()
+        self.generate_center_on_peak_button()
 
+        self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
         self.save_button.setEnabled(True)
         self.autofind_peak_button.setEnabled(False)
@@ -73,8 +75,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer()
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.start_acquisition)
-        self.timer.timeout.connect(self.update_plot)
         self.timer.start()
+
+
+    # --- GENERATE UI FUNCTIONS --- # 
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -136,6 +140,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autofind_peak_button.resize(180, 100)
         self.autofind_peak_button.clicked.connect(self.autofind_peak)
 
+    def generate_pause_button(self):
+        self.pause_button = QtWidgets.QPushButton('Pause', self)
+        self.pause_button.setToolTip('Pause or resume continuous data acquisition')
+        self.pause_button.move(1720, 430) # Position it below the other buttons
+        self.pause_button.resize(180, 100)
+        self.pause_button.setCheckable(True) # Makes the button a toggle
+        self.pause_button.clicked.connect(self.toggle_pause)
+
+    def generate_center_on_peak_button(self):
+        self.center_peak_button = QtWidgets.QPushButton('Center on Peak', self)
+        self.center_peak_button.setToolTip('Set the center frequency to the current peak')
+        self.center_peak_button.move(1720, 530) # Position below the pause button
+        self.center_peak_button.resize(180, 100)
+        self.center_peak_button.clicked.connect(self.center_on_peak)
+        self.center_peak_button.setEnabled(False) # Initially disabled
+
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
         self.command_box.move(140, 970)
@@ -183,6 +203,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.phase_cb.move(210, 900)
         self.phase_cb.setToolTip('Display phase data')
         self.phase_cb.stateChanged.connect(self.change_phase_state)
+
+
+    # --- OTHER FUNCTIONS --- # 
 
     def change_persist_state(self):
         if self.graph.persist:
@@ -259,8 +282,11 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QApplication.restoreOverrideCursor()
             self.save_button.setEnabled(True)
             self.autofind_peak_button.setEnabled(True)
+            self.center_peak_button.setEnabled(False) 
             self.graph.peak_freq = None
             self.graph.peak_mag = None
+            self.graph.plot()
+            self.acquire_button.setEnabled(True)
         else:
             self.logger.info('Data acquisition failed')
             self.acquire_button.setEnabled(True)
@@ -280,13 +306,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e6:.2f} MHz')
             # Set the marker on the plot canvas
             self.graph.mark_peak(peak_freq, peak_mag)
+            self.center_peak_button.setEnabled(True)
             self.graph.plot() # Redraw the plot to show the marker
         except (ValueError, IndexError) as e:
             self.logger.error(f'Could not find peak. Error: {e}')
-
-    def update_plot(self):
-        self.logger.info('Updating plot')
-        self.graph.plot()
 
     def send_command(self):
         command = self.command_box.text()
@@ -344,15 +367,6 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.logger.error('Failed to update span')
 
-
-    def generate_pause_button(self):
-        self.pause_button = QtWidgets.QPushButton('Pause', self)
-        self.pause_button.setToolTip('Pause or resume continuous data acquisition')
-        self.pause_button.move(1720, 430) # Position it below the other buttons
-        self.pause_button.resize(180, 100)
-        self.pause_button.setCheckable(True) # Makes the button a toggle
-        self.pause_button.clicked.connect(self.toggle_pause)
-
     def toggle_pause(self, paused):
         if paused:
             self.timer.stop()
@@ -363,6 +377,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.pause_button.setText('Pause')
             self.logger.info('Data acquisition resumed')
     
+    def center_on_peak(self):
+        if self.graph.peak_freq is not None:
+            peak_frequency = self.graph.peak_freq
+            self.logger.info(f'Centering on peak frequency: {peak_frequency / 1e6:.2f} MHz')
+            self.command_queue.put('set_center_frequency')
+            self.command_queue.put(peak_frequency)
+            
+            # After centering, trigger a new data acquisition to refresh the plot
+            self.start_acquisition()
+        else:
+            self.logger.warning('No peak marker set. Cannot center.')
+
     
 
 
