@@ -25,8 +25,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # main window settings
         self.title = 'HP4195A'
         self.window_icon = QIcon('icon.png')
-        self.width = 740
-        self.height = 600
+        self.width = 1920
+        self.height = 1080
 
         # create logging queue and handler
         self.qh = logging.handlers.QueueHandler(self.logging_queue)
@@ -45,8 +45,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.graph = PlotCanvas(self,
                                   data_queue=self.data_queue,
-                                  width=6,
-                                  height=4.1)
+                                  width=17,
+                                  height=8.5)
         self.graph.move(0,20)
 
         self.generate_connection_button()
@@ -102,75 +102,76 @@ class MainWindow(QtWidgets.QMainWindow):
     def generate_connection_button(self):
         self.connect_button = QtWidgets.QPushButton('Connect', self)
         self.connect_button.setToolTip('Connect to a HP4195A Network Analyser')
-        self.connect_button.move(600, 30)
-        self.connect_button.resize(140, 100)
+        self.connect_button.move(1720, 30)
+        self.connect_button.resize(180, 100)
         self.connect_button.clicked.connect(self.connect)
 
     def generate_acquire_button(self):
         self.acquire_button = QtWidgets.QPushButton('Acquire Data', self)
         self.acquire_button.setToolTip('Acquire data from a HP4195A Network Analyser')
-        self.acquire_button.move(600, 130)
-        self.acquire_button.resize(140, 100)
+        self.acquire_button.move(1720, 130)
+        self.acquire_button.resize(180, 100)
         self.acquire_button.clicked.connect(self.start_acquisition)
 
     def generate_update_button(self):
         self.update_button = QtWidgets.QPushButton('Update', self)
         self.update_button.setToolTip('Update the display')
-        self.update_button.move(600, 230)
-        self.update_button.resize(140, 100)
+        self.update_button.move(1720, 230)
+        self.update_button.resize(180, 100)
         self.update_button.clicked.connect(self.update_plot)
 
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
         self.save_button.setToolTip('Save the data')
-        self.save_button.move(600, 330)
-        self.save_button.resize(140, 100)
+        self.save_button.move(1720, 330)
+        self.save_button.resize(180, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
 
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
-        self.command_box.move(140, 510)
-        self.command_box.resize(440,30)
+        self.command_box.move(140, 970)
+        self.command_box.resize(1570,30)
         self.command_box.textChanged.connect(self.toggle_connect_button)
         self.command_box_label = QtWidgets.QLabel('GPIB Command:', self)
         self.command_box_label.resize(120,30)
-        self.command_box_label.move(10,510)
+        self.command_box_label.move(10,970)
 
     def generate_command_button(self):
         self.command_button = QtWidgets.QPushButton('Send Command', self)
-        self.command_button.move(590,510)
-        self.command_button.resize(140,30)
+        self.command_button.move(1720,970)
+        self.command_button.resize(180,30)
         self.command_button.setToolTip('Send the GPIB command')
         self.command_button.clicked.connect(self.send_command)
         self.command_button.setEnabled(False)
 
     def generate_response_box(self):
         self.response_box = QtWidgets.QLineEdit(self)
-        self.response_box.move(140, 550)
-        self.response_box.resize(590,30)
+        self.response_box.move(140, 1010)
+        self.response_box.resize(1760,30)
         self.response_box_label = QtWidgets.QLabel('Response:', self)
         self.response_box_label.resize(120,30)
-        self.response_box_label.move(10,550)
+        self.response_box_label.move(10,1010)
 
     def generate_persistance_checkbox(self):
         self.p_cb = QtWidgets.QCheckBox('Persist', self)
         self.p_cb.resize(100,30)
-        self.p_cb.move(10, 450)
+        self.p_cb.move(10, 900)
         self.p_cb.setToolTip('Set display to persist')
         self.p_cb.stateChanged.connect(self.change_persist_state)
 
     def generate_mag_enable_checkbox(self):
         self.mag_cb = QtWidgets.QCheckBox('Magnitude', self)
         self.mag_cb.toggle()
-        self.mag_cb.resize(590,30)
-        self.mag_cb.move(100, 450)
+        self.mag_cb.resize(100,30)
+        self.mag_cb.move(100, 900)
         self.mag_cb.setToolTip('Display magnitude data')
         self.mag_cb.stateChanged.connect(self.change_mag_state)
 
     def generate_phase_enable_checkbox(self):
         self.phase_cb = QtWidgets.QCheckBox('Phase', self)
         self.phase_cb.toggle()
-        self.phase_cb.move(210, 450)
+        self.phase_cb.resize(100,30)
+        self.phase_cb.move(210, 900)
         self.phase_cb.setToolTip('Display phase data')
         self.phase_cb.stateChanged.connect(self.change_phase_state)
 
@@ -316,7 +317,7 @@ class PlotCanvas(FigureCanvas):
         self.persist = False
         self.magnitude = True
         self.phase = True
-        
+
         self.freq_data = range(1, 100)
         self.mag_data = [0 for i in range(1, 100)]
         self.phase_data = [0 for i in range(1, 100)]
@@ -354,6 +355,7 @@ class PlotCanvas(FigureCanvas):
         self.mag_ax.set_xlabel('Frequency (Hz)', color='white')
         self.mag_ax.set_ylabel('Magnitude (dBm)', color='yellow')
         self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
+        self.phase_ax.yaxis.set_label_position('right')
 
         self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
@@ -363,6 +365,7 @@ class PlotCanvas(FigureCanvas):
         self.mag_ax.tick_params(axis='x', colors='white')
         self.mag_ax.tick_params(axis='y', colors='yellow')
         self.phase_ax.tick_params(axis='y', colors='cyan')
+
 
         for spine in self.mag_ax.spines.values():
             spine.set_edgecolor('white')
