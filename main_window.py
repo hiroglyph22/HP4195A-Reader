@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui, QtWebEngineWidgets
 from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.ticker import FuncFormatter
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -43,9 +44,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(self.window_icon)
 
         self.graph = PlotCanvas(self,
-                                data_queue=self.data_queue,
-                                width=6,
-                                height=4.1)
+                                  data_queue=self.data_queue,
+                                  width=6,
+                                  height=4.1)
         self.graph.move(0,20)
 
         self.generate_connection_button()
@@ -77,8 +78,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def generate_menu_save_button(self):
         self.save_button = QtWidgets.QAction(QIcon('exit24.png'),
-                                            'Save As...',
-                                            self)
+                                             'Save As...',
+                                             self)
         self.save_button.setShortcut('Ctrl+S')
         self.save_button.setStatusTip('Save As')
         self.save_button.triggered.connect(self.save_file_dialog)
@@ -216,9 +217,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Disconnecting from HP4195A')
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             self.command_queue.put('disconnect')
-            # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
             if self.message_queue.get():
-                # self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
                 self.logger.info('Successfully disconnected from HP4195A')
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Connect")
@@ -230,9 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Attempting to connect to HP4195A')
             QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             self.command_queue.put('connect')
-            # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
             if self.message_queue.get():
-                self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
                 self.logger.info('Successfully connected to HP4195A')
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Disconnect")
@@ -246,9 +243,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.acquire_button.setEnabled(False)
         self.command_queue.put('start_acquisition')
-        # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         reply = self.message_queue.get()
-        # self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
         if reply:
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
@@ -261,16 +256,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_plot(self):
         self.logger.info('Updating plot')
         self.graph.plot()
-        # TODO: check plot updated OK
         self.update_button.setEnabled(False)
         self.acquire_button.setEnabled(True)
 
     def send_command(self):
         command = self.command_box.text()
         self.command_queue.put('send_command')
-       # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         self.command_queue.put(command)
-        # self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         response = self.data_queue.get()
         self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
@@ -310,7 +302,6 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             event.ignore()
 
-
 class PlotCanvas(FigureCanvas):
     '''
     This class is for the figure that displays the data, it reads data off the data queue and updates the graph depending on the settings.
@@ -325,19 +316,22 @@ class PlotCanvas(FigureCanvas):
         self.persist = False
         self.magnitude = True
         self.phase = True
+        
         self.freq_data = range(1, 100)
         self.mag_data = [0 for i in range(1, 100)]
         self.phase_data = [0 for i in range(1, 100)]
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
+
+        self.fig = Figure(figsize=(width, height), dpi=dpi, facecolor='black')
         self.mag_ax = self.fig.add_subplot(111)
+        self.mag_ax.set_facecolor('black')
         self.phase_ax = self.mag_ax.twinx()
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
-                                   QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
+                                      QtWidgets.QSizePolicy.Expanding,
+                                      QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.plot()
 
@@ -356,24 +350,43 @@ class PlotCanvas(FigureCanvas):
             # If the queue is empty, do nothing and just redraw the existing data
             pass
 
-        self.mag_ax.set_ylabel('Magnitude (dB)')
-        self.phase_ax.set_ylabel('Phase (deg)')
-        self.mag_ax.set_xlabel('Frequency (Hz)')
+        # --- Style Configuration ---
+        self.mag_ax.set_xlabel('Frequency (Hz)', color='white')
+        self.mag_ax.set_ylabel('Magnitude (dBm)', color='yellow')
+        self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
+
         self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
         self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.mag_ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
 
-        if self.magnitude == True:
-            self.mag_ax.grid(color='0.9', linestyle='--', linewidth=1)
-            self.mag_ax.semilogx(self.freq_data, self.mag_data, 'b')
+        self.mag_ax.tick_params(axis='x', colors='white')
+        self.mag_ax.tick_params(axis='y', colors='yellow')
+        self.phase_ax.tick_params(axis='y', colors='cyan')
 
-        if self.phase == True:
-            self.phase_ax.grid(color='0.9', linestyle='--', linewidth=1)
-            self.phase_ax.semilogx(self.freq_data, self.phase_data, 'r')
+        for spine in self.mag_ax.spines.values():
+            spine.set_edgecolor('white')
+        self.phase_ax.spines['right'].set_edgecolor('cyan')
+        self.mag_ax.spines['left'].set_edgecolor('yellow')
+
+        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e6:.0f} MHz'))
+        self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
+        self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
+
+
+        # --- Plotting ---
+        # Matplotlib handles empty lists gracefully, so this will not error on startup
+        if self.magnitude:
+            self.mag_ax.plot(self.freq_data, self.mag_data, color='yellow', linewidth=1.5)
+
+        if self.phase:
+            self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5)
+        
+        self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
 
         self.fig.tight_layout()
         self.draw()
+
 
 class Help_Window(QtWidgets.QDialog):
     '''
