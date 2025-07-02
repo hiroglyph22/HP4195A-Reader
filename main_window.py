@@ -16,6 +16,9 @@ class MainWindow(QtWidgets.QMainWindow):
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
+
+        self.window_icon = QIcon('icon.png')
+
         # create data queues
         self.command_queue = command_queue
         self.message_queue = message_queue
@@ -24,7 +27,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # main window settings
         self.title = 'HP4195A'
-        self.window_icon = QIcon('icon.png')
         self.width = 1920
         self.height = 1080
 
@@ -65,10 +67,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.show()
 
-        # self.timer = QtCore.QTimer()
-        # self.timer.setInterval(5000)  # Update every 100 milliseconds
-        # self.timer.timeout.connect(self.update_plot)
-        # self.timer.start()
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(5000)
+        self.timer.timeout.connect(self.start_acquisition)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
