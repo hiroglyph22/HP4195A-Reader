@@ -61,9 +61,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_mag_enable_checkbox()
         self.generate_phase_enable_checkbox()
         self.generate_menu_bar()
+        self.generate_autofind_peak_button()
+        self.generate_pause_button()
 
         self.acquire_button.setEnabled(False)
         self.save_button.setEnabled(True)
+        self.autofind_peak_button.setEnabled(False)
 
         self.show()
 
@@ -122,9 +125,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
         self.save_button.setToolTip('Save the data')
-        self.save_button.move(1720, 330)
+        self.save_button.move(1720, 230)
         self.save_button.resize(180, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
+
+    def generate_autofind_peak_button(self):
+        self.autofind_peak_button = QtWidgets.QPushButton('Auto-find Peak', self)
+        self.autofind_peak_button.setToolTip('Automatically find and mark the peak magnitude')
+        self.autofind_peak_button.move(1720, 330)
+        self.autofind_peak_button.resize(180, 100)
+        self.autofind_peak_button.clicked.connect(self.autofind_peak)
 
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
@@ -248,9 +258,31 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
             self.save_button.setEnabled(True)
+            self.autofind_peak_button.setEnabled(True)
+            self.graph.peak_freq = None
+            self.graph.peak_mag = None
         else:
             self.logger.info('Data acquisition failed')
             self.acquire_button.setEnabled(True)
+
+    def autofind_peak(self):
+        self.logger.info('Finding peak magnitude')
+        if not hasattr(self.graph, 'mag_data') or self.graph.mag_data.size == 0:
+            self.logger.warning('No magnitude data available to find peak.')
+            return
+        try:
+            # Find the index of the maximum magnitude value
+            mag_data_np = np.array(self.graph.mag_data)
+            peak_index = np.argmax(mag_data_np)
+            peak_mag = mag_data_np[peak_index]
+            peak_freq = self.graph.freq_data[peak_index]
+
+            self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e6:.2f} MHz')
+            # Set the marker on the plot canvas
+            self.graph.mark_peak(peak_freq, peak_mag)
+            self.graph.plot() # Redraw the plot to show the marker
+        except (ValueError, IndexError) as e:
+            self.logger.error(f'Could not find peak. Error: {e}')
 
     def update_plot(self):
         self.logger.info('Updating plot')
@@ -299,6 +331,40 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             event.ignore()
 
+    def update_span(self, span):
+        self.logger.info('Updating span to: {}'.format(span))
+        self.command_queue.put('update_span')
+        self.command_queue.put(span)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        response = self.data_queue.get()
+        if response:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.info('Span updated successfully')
+        else:
+            self.logger.error('Failed to update span')
+
+
+    def generate_pause_button(self):
+        self.pause_button = QtWidgets.QPushButton('Pause', self)
+        self.pause_button.setToolTip('Pause or resume continuous data acquisition')
+        self.pause_button.move(1720, 430) # Position it below the other buttons
+        self.pause_button.resize(180, 100)
+        self.pause_button.setCheckable(True) # Makes the button a toggle
+        self.pause_button.clicked.connect(self.toggle_pause)
+
+    def toggle_pause(self, paused):
+        if paused:
+            self.timer.stop()
+            self.pause_button.setText('Resume')
+            self.logger.info('Data acquisition paused')
+        else:
+            self.timer.start()
+            self.pause_button.setText('Pause')
+            self.logger.info('Data acquisition resumed')
+    
+    
+
+
 class PlotCanvas(FigureCanvas):
     '''
     This class is for the figure that displays the data, it reads data off the data queue and updates the graph depending on the settings.
@@ -313,6 +379,9 @@ class PlotCanvas(FigureCanvas):
         self.persist = False
         self.magnitude = True
         self.phase = True
+
+        self.peak_freq = None
+        self.peak_mag = None
 
         self.freq_data = range(1, 100)
         self.mag_data = [0 for i in range(1, 100)]
@@ -331,6 +400,11 @@ class PlotCanvas(FigureCanvas):
                                       QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.plot()
+
+    def mark_peak(self, freq, mag):
+        '''Saves the coordinates of the peak to be marked on the plot.'''
+        self.peak_freq = freq
+        self.peak_mag = mag
 
     def plot(self):
         from queue import Empty
@@ -381,6 +455,17 @@ class PlotCanvas(FigureCanvas):
         if self.phase:
             self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5)
         
+        # peak marker
+        if self.peak_freq is not None and self.peak_mag is not None:
+            self.mag_ax.annotate(f'Peak\n{self.peak_mag:.2f} dBm',
+                xy=(self.peak_freq, self.peak_mag),
+                xytext=(self.peak_freq, self.peak_mag + 15),
+                color='red',
+                fontsize=10,
+                ha='center',
+                arrowprops=dict(facecolor='red', shrink=0.05, width=2, headwidth=8)
+            )
+
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
 
         self.fig.tight_layout()
