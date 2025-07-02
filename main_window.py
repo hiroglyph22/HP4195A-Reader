@@ -327,6 +327,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if True:
             if self.connected:
                 self.connect()
+            self.logging_queue.put(None)
             event.accept()
         else:
             event.ignore()
