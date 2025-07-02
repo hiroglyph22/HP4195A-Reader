@@ -64,6 +64,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_autofind_peak_button()
         self.generate_pause_button()
         self.generate_center_on_peak_button()
+        self.generate_peak_scan_section()
 
         self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
@@ -75,8 +76,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer()
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.start_acquisition)
-        self.timer.start()
-
 
     # --- GENERATE UI FUNCTIONS --- # 
 
@@ -204,6 +203,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.phase_cb.setToolTip('Display phase data')
         self.phase_cb.stateChanged.connect(self.change_phase_state)
 
+    def generate_peak_scan_section(self):
+        # Estimated Peak Frequency
+        self.peak_scan_label = QtWidgets.QLabel('Est. Peak Freq (Hz):', self)
+        self.peak_scan_label.resize(120, 30)
+        self.peak_scan_label.move(10, 935)
+        self.peak_freq_input = QtWidgets.QLineEdit(self)
+        self.peak_freq_input.move(140, 935)
+        self.peak_freq_input.resize(200, 30)
+
+        # Span
+        self.span_label = QtWidgets.QLabel('Span (Hz):', self)
+        self.span_label.resize(120, 30)
+        self.span_label.move(350, 935)
+        self.span_input = QtWidgets.QLineEdit(self)
+        self.span_input.setText('10000') # Default 10 kHz span
+        self.span_input.move(450, 935)
+        self.span_input.resize(200, 30)
+
+        # Button to trigger the scan
+        self.peak_scan_button = QtWidgets.QPushButton('Scan', self)
+        self.peak_scan_button.setToolTip('Set center and span to find a peak')
+        self.peak_scan_button.move(660, 935)
+        self.peak_scan_button.resize(180, 30)
+        self.peak_scan_button.clicked.connect(self.start_peak_scan)
 
     # --- OTHER FUNCTIONS --- # 
 
@@ -245,6 +268,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.command_button.setEnabled(False)
 
+
     def connect(self):
         if self.connected:
             self.logger.info('Disconnecting from HP4195A')
@@ -268,6 +292,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.connect_button.setText("Disconnect")
                 self.acquire_button.setEnabled(True)
                 self.connected = True
+                self.timer.start()
             else:
                 self.logger.info('Connection to HP4195 failed')
 
@@ -293,7 +318,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def autofind_peak(self):
         self.logger.info('Finding peak magnitude')
-        if not hasattr(self.graph, 'mag_data') or self.graph.mag_data.size == 0:
+        if not hasattr(self.graph, 'mag_data') or len(self.graph.mag_data) == 0:
             self.logger.warning('No magnitude data available to find peak.')
             return
         try:
@@ -303,7 +328,7 @@ class MainWindow(QtWidgets.QMainWindow):
             peak_mag = mag_data_np[peak_index]
             peak_freq = self.graph.freq_data[peak_index]
 
-            self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e6:.2f} MHz')
+            self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e3:.2f} KHz')
             # Set the marker on the plot canvas
             self.graph.mark_peak(peak_freq, peak_mag)
             self.center_peak_button.setEnabled(True)
@@ -380,7 +405,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def center_on_peak(self):
         if self.graph.peak_freq is not None:
             peak_frequency = self.graph.peak_freq
-            self.logger.info(f'Centering on peak frequency: {peak_frequency / 1e6:.2f} MHz')
+            self.logger.info(f'Centering on peak frequency: {peak_frequency / 1e3:.2f} KHz')
             self.command_queue.put('set_center_frequency')
             self.command_queue.put(peak_frequency)
             
@@ -389,7 +414,41 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.logger.warning('No peak marker set. Cannot center.')
 
-    
+    def start_peak_scan(self):
+        freq_text = self.peak_freq_input.text()
+        span_text = self.span_input.text() # Get text from the new span input
+        try:
+            # Validate that both inputs are numbers
+            center_freq = float(freq_text)
+            span_freq = float(span_text) # Use the value from the UI
+            
+            self.logger.info(f'Starting peak scan around {center_freq / 1e3:.2f} kHz with a {span_freq / 1e3:.2f} kHz span')
+            
+            # Send commands to the backend
+            self.command_queue.put('set_center_and_span')
+            self.command_queue.put(center_freq)
+            self.command_queue.put(span_freq) # Send the customized span
+
+            # Wait for confirmation from the backend
+            if self.message_queue.get():
+                self.logger.info('Center and span set successfully.')
+                
+                self.command_queue.put('single_sweep')
+                if self.message_queue.get():
+                    self.start_acquisition()
+                    self.autofind_peak()
+                    self.center_on_peak()
+            else:
+                self.logger.error('Failed to set center and span on the instrument.')
+
+        except ValueError:
+            self.logger.error(f'Invalid frequency or span input.')
+            error_dialog = QtWidgets.QMessageBox()
+            error_dialog.setIcon(QtWidgets.QMessageBox.Critical)
+            error_dialog.setText("Invalid Input")
+            error_dialog.setInformativeText("Please enter a valid number for frequency and span.")
+            error_dialog.setWindowTitle("Error")
+            error_dialog.exec_()
 
 
 class PlotCanvas(FigureCanvas):
@@ -469,7 +528,7 @@ class PlotCanvas(FigureCanvas):
         self.phase_ax.spines['right'].set_edgecolor('cyan')
         self.mag_ax.spines['left'].set_edgecolor('yellow')
 
-        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e6:.0f} MHz'))
+        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.0f} KHz'))
         self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
         self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
 
