@@ -16,6 +16,9 @@ class MainWindow(QtWidgets.QMainWindow):
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
+
+        self.window_icon = QIcon('icon.png')
+
         # create data queues
         self.command_queue = command_queue
         self.message_queue = message_queue
@@ -24,7 +27,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # main window settings
         self.title = 'HP4195A'
-        self.window_icon = QIcon('icon.png')
         self.width = 1920
         self.height = 1080
 
@@ -51,7 +53,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.generate_connection_button()
         self.generate_acquire_button()
-        self.generate_update_button()
         self.generate_save_button()
         self.generate_command_box()
         self.generate_command_button()
@@ -62,10 +63,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_menu_bar()
 
         self.acquire_button.setEnabled(False)
-        self.update_button.setEnabled(False)
         self.save_button.setEnabled(True)
 
         self.show()
+
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(5000)
+        self.timer.timeout.connect(self.start_acquisition)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -112,13 +118,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.acquire_button.move(1720, 130)
         self.acquire_button.resize(180, 100)
         self.acquire_button.clicked.connect(self.start_acquisition)
-
-    def generate_update_button(self):
-        self.update_button = QtWidgets.QPushButton('Update', self)
-        self.update_button.setToolTip('Update the display')
-        self.update_button.move(1720, 230)
-        self.update_button.resize(180, 100)
-        self.update_button.clicked.connect(self.update_plot)
 
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
@@ -248,7 +247,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if reply:
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
-            self.update_button.setEnabled(True)
             self.save_button.setEnabled(True)
         else:
             self.logger.info('Data acquisition failed')
@@ -257,8 +255,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_plot(self):
         self.logger.info('Updating plot')
         self.graph.plot()
-        self.update_button.setEnabled(False)
-        self.acquire_button.setEnabled(True)
 
     def send_command(self):
         command = self.command_box.text()
