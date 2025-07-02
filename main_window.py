@@ -16,6 +16,9 @@ class MainWindow(QtWidgets.QMainWindow):
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
+
+        self.window_icon = QIcon('icon.png')
+
         # create data queues
         self.command_queue = command_queue
         self.message_queue = message_queue
@@ -24,7 +27,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # main window settings
         self.title = 'HP4195A'
-        self.window_icon = QIcon('icon.png')
         self.width = 1920
         self.height = 1080
 
@@ -51,7 +53,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.generate_connection_button()
         self.generate_acquire_button()
-        self.generate_update_button()
         self.generate_save_button()
         self.generate_command_box()
         self.generate_command_button()
@@ -60,12 +61,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_mag_enable_checkbox()
         self.generate_phase_enable_checkbox()
         self.generate_menu_bar()
+        self.generate_autofind_peak_button()
 
         self.acquire_button.setEnabled(False)
-        self.update_button.setEnabled(False)
         self.save_button.setEnabled(True)
+        self.autofind_peak_button.setEnabled(False)
 
         self.show()
+
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(5000)
+        self.timer.timeout.connect(self.start_acquisition)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -113,19 +121,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.acquire_button.resize(180, 100)
         self.acquire_button.clicked.connect(self.start_acquisition)
 
-    def generate_update_button(self):
-        self.update_button = QtWidgets.QPushButton('Update', self)
-        self.update_button.setToolTip('Update the display')
-        self.update_button.move(1720, 230)
-        self.update_button.resize(180, 100)
-        self.update_button.clicked.connect(self.update_plot)
-
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
         self.save_button.setToolTip('Save the data')
-        self.save_button.move(1720, 330)
+        self.save_button.move(1720, 230)
         self.save_button.resize(180, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
+
+    def generate_autofind_peak_button(self):
+        self.autofind_peak_button = QtWidgets.QPushButton('Auto-find Peak', self)
+        self.autofind_peak_button.setToolTip('Automatically find and mark the peak magnitude')
+        self.autofind_peak_button.move(1720, 330)
+        self.autofind_peak_button.resize(180, 100)
+        self.autofind_peak_button.clicked.connect(self.autofind_peak)
 
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
@@ -248,17 +256,34 @@ class MainWindow(QtWidgets.QMainWindow):
         if reply:
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
-            self.update_button.setEnabled(True)
             self.save_button.setEnabled(True)
+            self.autofind_peak_button.setEnabled(True)
         else:
             self.logger.info('Data acquisition failed')
             self.acquire_button.setEnabled(True)
 
+    def autofind_peak(self):
+        self.logger.info('Finding peak magnitude')
+        if not hasattr(self.graph, 'mag_data') or not self.graph.mag_data:
+            self.logger.warning('No magnitude data available to find peak.')
+            return
+        try:
+            # Find the index of the maximum magnitude value
+            mag_data_np = np.array(self.graph.mag_data)
+            peak_index = np.argmax(mag_data_np)
+            peak_mag = mag_data_np[peak_index]
+            peak_freq = self.graph.freq_data[peak_index]
+
+            self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e6:.2f} MHz')
+            # Set the marker on the plot canvas
+            self.graph.mark_peak(peak_freq, peak_mag)
+            self.graph.plot() # Redraw the plot to show the marker
+        except (ValueError, IndexError) as e:
+            self.logger.error(f'Could not find peak. Error: {e}')
+
     def update_plot(self):
         self.logger.info('Updating plot')
         self.graph.plot()
-        self.update_button.setEnabled(False)
-        self.acquire_button.setEnabled(True)
 
     def send_command(self):
         command = self.command_box.text()
@@ -302,6 +327,21 @@ class MainWindow(QtWidgets.QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def update_span(self, span):
+        self.logger.info('Updating span to: {}'.format(span))
+        self.command_queue.put('update_span')
+        self.command_queue.put(span)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        response = self.data_queue.get()
+        if response:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.info('Span updated successfully')
+        else:
+            self.logger.error('Failed to update span')
+    
+    
+
 
 class PlotCanvas(FigureCanvas):
     '''
