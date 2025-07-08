@@ -1,13 +1,12 @@
 import sys
 import os
 import time
-# Telnetlib is no longer needed
 import multiprocessing
 import numpy as np
 import logging
 import logging.handlers
-import pyvisa # Import the new library
-import csv # <-- ADDED: Import the csv module
+import pyvisa
+import csv
 
 class hp4195a(multiprocessing.Process):
     def __init__(self, command_queue, message_queue, data_queue, logger_queue):
@@ -21,11 +20,9 @@ class hp4195a(multiprocessing.Process):
         self.phase_data = []
         self.freq_data = []
 
-        # --- MODIFIED: Replaced Telnet/GPIB attributes with VISA resource name ---
-        # Replace this with the address you found in Step 2
         self.visa_resource_name = 'GPIB0::17::INSTR' 
         self.device_id = 'HP4195A'
-        self.instrument = None # This will hold the connection to the instrument
+        self.instrument = None
         self.rm = None # This is the pyvisa resource manager
 
     def run(self):
@@ -43,7 +40,6 @@ class hp4195a(multiprocessing.Process):
             self.command = self.command_queue.get()
             self.logger.info('Received \"{}\" from GUI'.format(self.command))
             
-            # --- MODIFIED: Calls new connect/disconnect methods ---
             if self.command == 'connect':
                 self.logger.info('Connecting to HP4195A via VISA')
                 self.visa_connect()
@@ -53,7 +49,6 @@ class hp4195a(multiprocessing.Process):
                 self.visa_disconnect()
 
             elif self.command == 'start_acquisition':
-                # This part of the logic remains the same
                 self.logger.info('Starting data acquisition')
                 if self.acquire_mag_data():
                     if self.acquire_phase_data():
@@ -86,14 +81,38 @@ class hp4195a(multiprocessing.Process):
                     self.logger.warning('Data length check failed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
                     self.message_queue.put(False)
 
+            elif self.command == 'set_center_and_span':
+                center_freq = self.command_queue.get()
+                span_freq = self.command_queue.get()
+
+                self.send_command(f"CENTER = {center_freq} HZ")
+                self.send_command(f"SPAN = {span_freq} HZ")
+
+                # Send a confirmation message back to the UI
+                self.message_queue.put(True)
+
+            elif self.command == 'single_sweep':
+                self.single_sweep(20)
+
+            elif self.command == 'set_center_frequency':
+                center_freq_hz = self.command_queue.get()
+                command_string = f"CENTER = {center_freq_hz} HZ"
+                self.send_command(command_string)
+
             elif self.command == 'send_command':
-                self.command =  self.command_queue.get()
+                self.command = self.command_queue.get()
                 self.logger.info('Sending GPIB command: {}'.format(self.command))
                 self.response = self.send_query(self.command)
                 self.logger.info('Response: {}'.format(self.response))
                 self.data_queue.put(self.response)
 
-    # --- NEW METHOD: Replaces telnet_connect ---
+            elif self.command == 'low_res_sweep':
+                self.logger.info('Starting low resolution sweep')
+                self.send_command('RBW = 100 HZ')
+                self.single_sweep(45)
+                self.send_command('RBW = 300 HZ')
+
+
     def visa_connect(self):
         self.logger.info('Starting VISA communications')
         try:
@@ -115,7 +134,6 @@ class hp4195a(multiprocessing.Process):
             self.logger.error(f"VISA Error: {e}")
             self.message_queue.put(False)
 
-    # --- NEW METHOD: Replaces telnet_disconnect ---
     def visa_disconnect(self):
         self.logger.info('Disconnecting VISA connection')
         if self.instrument:
@@ -124,7 +142,6 @@ class hp4195a(multiprocessing.Process):
         self.rm = None
         self.message_queue.put(True)
 
-    # --- MODIFIED: These methods now use VISA commands ---
     def acquire_mag_data(self):
         raw_mag_data = self.send_query('A?')
         mag_data = np.fromstring(raw_mag_data, dtype=float, sep=',')
@@ -146,13 +163,11 @@ class hp4195a(multiprocessing.Process):
             self.freq_data = freq_data
             return True
 
-    # --- MODIFIED: Replaces telnet command with VISA write ---
     def send_command(self, command):
         self.logger.info('Sent \"{}\"'.format(command))
         if self.instrument:
             self.instrument.write(command)
 
-    # --- MODIFIED: Replaces telnet query with VISA query ---
     def send_query(self, command):
         self.logger.info('Querying \"{}\"'.format(command))
         if self.instrument:
@@ -164,3 +179,31 @@ class hp4195a(multiprocessing.Process):
                 self.logger.error(f"VISA Query Error: {e}")
                 return "Query failed"
         return "Not connected"
+    
+    def single_sweep(self, sleepDuration):
+        self.logger.info('Starting single sweep')
+        
+        # Trigger a single sweep
+        self.send_command('SWM2')
+        self.send_command('SWTRG')
+
+        time.sleep(sleepDuration)
+
+        self.logger.info('Sweep complete. Acquiring data.')
+
+        if self.acquire_mag_data():
+            if self.acquire_phase_data():
+                if self.acquire_freq_data():
+
+                    mag_check = len(self.mag_data) == len(self.freq_data)
+                    phase_check = len(self.phase_data) == len(self.freq_data)
+
+                    if mag_check and phase_check:
+                        self.logger.info('Data length check passed.')
+                        self.message_queue.put(True)
+                        self.data_queue.put(self.mag_data)
+                        self.data_queue.put(self.phase_data)
+                        self.data_queue.put(self.freq_data)
+                    else:
+                        self.logger.warning('Data length check failed.')
+                        self.message_queue.put(False)

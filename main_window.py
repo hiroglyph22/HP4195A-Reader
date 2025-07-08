@@ -61,17 +61,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_mag_enable_checkbox()
         self.generate_phase_enable_checkbox()
         self.generate_menu_bar()
+        self.generate_autofind_peak_button()
+        self.generate_pause_button()
+        self.generate_center_on_peak_button()
+        self.generate_peak_scan_section()
+        self.generate_low_res_sweep_button() # Added button
 
+        self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
         self.save_button.setEnabled(True)
+        self.autofind_peak_button.setEnabled(False)
+        self.peak_scan_button.setEnabled(False)
+        self.low_res_sweep_button.setEnabled(False)
+
 
         self.show()
 
         self.timer = QtCore.QTimer()
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.start_acquisition)
-        self.timer.timeout.connect(self.update_plot)
-        self.timer.start()
+
+    # --- GENERATE UI FUNCTIONS --- #
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -122,9 +132,32 @@ class MainWindow(QtWidgets.QMainWindow):
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
         self.save_button.setToolTip('Save the data')
-        self.save_button.move(1720, 330)
+        self.save_button.move(1720, 230)
         self.save_button.resize(180, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
+
+    def generate_autofind_peak_button(self):
+        self.autofind_peak_button = QtWidgets.QPushButton('Auto-find Peak', self)
+        self.autofind_peak_button.setToolTip('Automatically find and mark the peak magnitude')
+        self.autofind_peak_button.move(1720, 330)
+        self.autofind_peak_button.resize(180, 100)
+        self.autofind_peak_button.clicked.connect(self.autofind_peak)
+
+    def generate_pause_button(self):
+        self.pause_button = QtWidgets.QPushButton('Pause', self)
+        self.pause_button.setToolTip('Pause or resume continuous data acquisition')
+        self.pause_button.move(1720, 430) # Position it below the other buttons
+        self.pause_button.resize(180, 100)
+        self.pause_button.setCheckable(True) # Makes the button a toggle
+        self.pause_button.clicked.connect(self.toggle_pause)
+
+    def generate_center_on_peak_button(self):
+        self.center_peak_button = QtWidgets.QPushButton('Center on Peak', self)
+        self.center_peak_button.setToolTip('Set the center frequency to the current peak')
+        self.center_peak_button.move(1720, 530) # Position below the pause button
+        self.center_peak_button.resize(180, 100)
+        self.center_peak_button.clicked.connect(self.center_on_peak)
+        self.center_peak_button.setEnabled(False) # Initially disabled
 
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
@@ -174,6 +207,40 @@ class MainWindow(QtWidgets.QMainWindow):
         self.phase_cb.setToolTip('Display phase data')
         self.phase_cb.stateChanged.connect(self.change_phase_state)
 
+    def generate_peak_scan_section(self):
+        # Estimated Peak Frequency
+        self.peak_scan_label = QtWidgets.QLabel('Est. Peak Freq (Hz):', self)
+        self.peak_scan_label.resize(120, 30)
+        self.peak_scan_label.move(10, 935)
+        self.peak_freq_input = QtWidgets.QLineEdit(self)
+        self.peak_freq_input.move(140, 935)
+        self.peak_freq_input.resize(200, 30)
+
+        # Span
+        self.span_label = QtWidgets.QLabel('Span (Hz):', self)
+        self.span_label.resize(120, 30)
+        self.span_label.move(350, 935)
+        self.span_input = QtWidgets.QLineEdit(self)
+        self.span_input.setText('10000') # Default 10 kHz span
+        self.span_input.move(450, 935)
+        self.span_input.resize(200, 30)
+
+        # Button to trigger the scan
+        self.peak_scan_button = QtWidgets.QPushButton('Scan', self)
+        self.peak_scan_button.setToolTip('Set center and span to find a peak')
+        self.peak_scan_button.move(660, 935)
+        self.peak_scan_button.resize(180, 30)
+        self.peak_scan_button.clicked.connect(self.start_peak_scan)
+        
+    def generate_low_res_sweep_button(self):
+        self.low_res_sweep_button = QtWidgets.QPushButton('Low Res Sweep', self)
+        self.low_res_sweep_button.setToolTip('Perform a quick, low-resolution sweep of the full spectrum')
+        self.low_res_sweep_button.move(850, 935) # Position next to the "Scan" button
+        self.low_res_sweep_button.resize(180, 30)
+        self.low_res_sweep_button.clicked.connect(self.start_low_res_sweep)
+
+    # --- OTHER FUNCTIONS --- #
+
     def change_persist_state(self):
         if self.graph.persist:
             self.graph.persist = False
@@ -212,6 +279,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.command_button.setEnabled(False)
 
+
     def connect(self):
         if self.connected:
             self.logger.info('Disconnecting from HP4195A')
@@ -222,6 +290,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Connect")
                 self.acquire_button.setEnabled(False)
+                self.peak_scan_button.setEnabled(False) 
+                self.low_res_sweep_button.setEnabled(False) 
                 self.connected = False
             else:
                 self.logger.info('Disconnection from HP4195 failed')
@@ -234,7 +304,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Disconnect")
                 self.acquire_button.setEnabled(True)
+                self.peak_scan_button.setEnabled(True) 
+                self.low_res_sweep_button.setEnabled(True) 
                 self.connected = True
+                self.timer.start()
             else:
                 self.logger.info('Connection to HP4195 failed')
 
@@ -248,13 +321,35 @@ class MainWindow(QtWidgets.QMainWindow):
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
             self.save_button.setEnabled(True)
+            self.autofind_peak_button.setEnabled(True)
+            self.center_peak_button.setEnabled(False)
+            self.graph.peak_freq = None
+            self.graph.peak_mag = None
+            self.graph.plot()
+            self.acquire_button.setEnabled(True)
         else:
             self.logger.info('Data acquisition failed')
             self.acquire_button.setEnabled(True)
 
-    def update_plot(self):
-        self.logger.info('Updating plot')
-        self.graph.plot()
+    def autofind_peak(self):
+        self.logger.info('Finding peak magnitude')
+        if not hasattr(self.graph, 'mag_data') or len(self.graph.mag_data) == 0:
+            self.logger.warning('No magnitude data available to find peak.')
+            return
+        try:
+            # Find the index of the maximum magnitude value
+            mag_data_np = np.array(self.graph.mag_data)
+            peak_index = np.argmax(mag_data_np)
+            peak_mag = mag_data_np[peak_index]
+            peak_freq = self.graph.freq_data[peak_index]
+
+            self.logger.info(f'Peak found: {peak_mag:.2f} dBm at {peak_freq/1e3:.2f} KHz')
+            # Set the marker on the plot canvas
+            self.graph.mark_peak(peak_freq, peak_mag)
+            self.center_peak_button.setEnabled(True)
+            self.graph.plot() # Redraw the plot to show the marker
+        except (ValueError, IndexError) as e:
+            self.logger.error(f'Could not find peak. Error: {e}')
 
     def send_command(self):
         command = self.command_box.text()
@@ -295,9 +390,90 @@ class MainWindow(QtWidgets.QMainWindow):
         if True:
             if self.connected:
                 self.connect()
+            self.logging_queue.put(None)
             event.accept()
         else:
             event.ignore()
+
+    def update_span(self, span):
+        self.logger.info('Updating span to: {}'.format(span))
+        self.command_queue.put('update_span')
+        self.command_queue.put(span)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        response = self.data_queue.get()
+        if response:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.info('Span updated successfully')
+        else:
+            self.logger.error('Failed to update span')
+
+    def toggle_pause(self, paused):
+        if paused:
+            self.timer.stop()
+            self.pause_button.setText('Resume')
+            self.logger.info('Data acquisition paused')
+        else:
+            self.timer.start()
+            self.pause_button.setText('Pause')
+            self.logger.info('Data acquisition resumed')
+
+    def center_on_peak(self):
+        if self.graph.peak_freq is not None:
+            peak_frequency = self.graph.peak_freq
+            self.logger.info(f'Centering on peak frequency: {peak_frequency / 1e3:.2f} KHz')
+            self.command_queue.put('set_center_frequency')
+            self.command_queue.put(peak_frequency)
+
+            # After centering, trigger a new data acquisition to refresh the plot
+            self.start_acquisition()
+        else:
+            self.logger.warning('No peak marker set. Cannot center.')
+
+    def start_peak_scan(self):
+        freq_text = self.peak_freq_input.text()
+        span_text = self.span_input.text() # Get text from the new span input
+        try:
+            # Validate that both inputs are numbers
+            center_freq = float(freq_text)
+            span_freq = float(span_text) # Use the value from the UI
+
+            self.logger.info(f'Starting peak scan around {center_freq / 1e3:.2f} kHz with a {span_freq / 1e3:.2f} kHz span')
+
+            self.command_queue.put('set_center_and_span')
+            self.command_queue.put(center_freq)
+            self.command_queue.put(span_freq)
+
+            if self.message_queue.get():
+                self.logger.info('Center and span set successfully.')
+
+                self.command_queue.put('single_sweep')
+                if self.message_queue.get():
+                    self.start_acquisition()
+                    self.autofind_peak()
+                    self.center_on_peak()
+            else:
+                self.logger.error('Failed to set center and span on the instrument.')
+
+        except ValueError:
+            self.logger.error(f'Invalid frequency or span input.')
+            error_dialog = QtWidgets.QMessageBox()
+            error_dialog.setIcon(QtWidgets.QMessageBox.Critical)
+            error_dialog.setText("Invalid Input")
+            error_dialog.setInformativeText("Please enter a valid number for frequency and span.")
+            error_dialog.setWindowTitle("Error")
+            error_dialog.exec_()
+            
+    def start_low_res_sweep(self):
+        self.logger.info('Starting low-resolution sweep.')
+        self.command_queue.put('low_res_sweep')
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        if self.message_queue.get():
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.info('Low-resolution sweep complete. Acquiring data.')
+            self.start_acquisition()
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.error('Failed to perform low-resolution sweep.')
 
 class PlotCanvas(FigureCanvas):
     '''
@@ -314,6 +490,9 @@ class PlotCanvas(FigureCanvas):
         self.magnitude = True
         self.phase = True
 
+        self.peak_freq = None
+        self.peak_mag = None
+
         self.freq_data = range(1, 100)
         self.mag_data = [0 for i in range(1, 100)]
         self.phase_data = [0 for i in range(1, 100)]
@@ -327,10 +506,15 @@ class PlotCanvas(FigureCanvas):
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
-                                      QtWidgets.QSizePolicy.Expanding,
-                                      QtWidgets.QSizePolicy.Expanding)
+                                   QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.plot()
+
+    def mark_peak(self, freq, mag):
+        '''Saves the coordinates of the peak to be marked on the plot.'''
+        self.peak_freq = freq
+        self.peak_mag = mag
 
     def plot(self):
         from queue import Empty
@@ -368,7 +552,7 @@ class PlotCanvas(FigureCanvas):
         self.phase_ax.spines['right'].set_edgecolor('cyan')
         self.mag_ax.spines['left'].set_edgecolor('yellow')
 
-        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e6:.0f} MHz'))
+        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.0f} KHz'))
         self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
         self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
 
@@ -380,7 +564,18 @@ class PlotCanvas(FigureCanvas):
 
         if self.phase:
             self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5)
-        
+
+        # peak marker
+        if self.peak_freq is not None and self.peak_mag is not None:
+            self.mag_ax.annotate(f'Peak\n{self.peak_mag:.2f} dBm',
+                xy=(self.peak_freq, self.peak_mag),
+                xytext=(self.peak_freq, self.peak_mag + 15),
+                color='red',
+                fontsize=10,
+                ha='center',
+                arrowprops=dict(facecolor='red', shrink=0.05, width=2, headwidth=8)
+            )
+
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
 
         self.fig.tight_layout()
