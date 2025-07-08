@@ -424,12 +424,10 @@ class MainWindow(QtWidgets.QMainWindow):
             
             self.logger.info(f'Starting peak scan around {center_freq / 1e3:.2f} kHz with a {span_freq / 1e3:.2f} kHz span')
             
-            # Send commands to the backend
             self.command_queue.put('set_center_and_span')
             self.command_queue.put(center_freq)
-            self.command_queue.put(span_freq) # Send the customized span
+            self.command_queue.put(span_freq)
 
-            # Wait for confirmation from the backend
             if self.message_queue.get():
                 self.logger.info('Center and span set successfully.')
                 
@@ -438,6 +436,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.start_acquisition()
                     self.autofind_peak()
                     self.center_on_peak()
+                    if self.message_queue.get():
+                        self.command_queue.put('low_res_sweep')
             else:
                 self.logger.error('Failed to set center and span on the instrument.')
 

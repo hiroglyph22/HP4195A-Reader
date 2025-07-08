@@ -105,11 +105,18 @@ class hp4195a(multiprocessing.Process):
                 self.send_command(command_string)
 
             elif self.command == 'send_command':
-                self.command =  self.command_queue.get()
+                self.command = self.command_queue.get()
                 self.logger.info('Sending GPIB command: {}'.format(self.command))
                 self.response = self.send_query(self.command)
                 self.logger.info('Response: {}'.format(self.response))
                 self.data_queue.put(self.response)
+
+            elif self.command == 'low_res_sweep':
+                self.logger.info('Starting low resolution sweep')
+                self.send_command('RWM = 10 HZ')
+                self.single_sweep()
+                self.send_command('RWM = 300 HZ')
+
 
     def visa_connect(self):
         self.logger.info('Starting VISA communications')
