@@ -91,6 +91,14 @@ class hp4195a(multiprocessing.Process):
                 # Send a confirmation message back to the UI
                 self.message_queue.put(True)
 
+            elif self.command == 'set_start_stop':
+                start_freq = self.command_queue.get()
+                stop_freq = self.command_queue.get()
+                self.send_command(f"START = {start_freq} HZ")
+                self.send_command(f"STOP = {stop_freq} HZ")
+                # Send a confirmation message back to the UI
+                self.message_queue.put(True)
+
             elif self.command == 'single_sweep':
                 self.single_sweep(20)
 
@@ -120,16 +128,24 @@ class hp4195a(multiprocessing.Process):
             self.instrument = self.rm.open_resource(self.visa_resource_name)
             # Set a timeout (in milliseconds)
             self.instrument.timeout = 5000 
+
             # Check instrument ID
-            identity = self.instrument.query('ID?')
-            self.logger.info(f"Connected to: {identity}")
-            if self.device_id in identity:
+            # Query the instrument for its full identity string
+            identity_full = self.instrument.query('ID?')
+            
+            # The instrument response can be verbose, so we split it into lines
+            # and take only the first line for a clean ID.
+            identity_clean = identity_full.splitlines()[0]
+            
+            self.logger.info(f"Connected to: {identity_clean}")
+            if self.device_id in identity_clean:
                 self.logger.info('Successfully found {}'.format(self.device_id))
                 self.message_queue.put(True)
             else:
-                self.logger.warning(f'Device ID mismatch. Expected {self.device_id}, got {identity}')
+                self.logger.warning(f'Device ID mismatch. Expected {self.device_id}, got {identity_clean}')
                 self.instrument.close()
                 self.message_queue.put(False)
+                
         except pyvisa.errors.VisaIOError as e:
             self.logger.error(f"VISA Error: {e}")
             self.message_queue.put(False)
