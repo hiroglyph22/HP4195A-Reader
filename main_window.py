@@ -68,6 +68,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_low_res_sweep_button() 
         self.generate_q_factor_button()
 
+
         self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
         self.save_button.setEnabled(True)
@@ -247,7 +248,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.q_factor_button.move(1720, 630) # Position below "Center on Peak"
         self.q_factor_button.resize(180, 100)
         self.q_factor_button.clicked.connect(self.calculate_q_factor)
-
+        
+        
     # --- OTHER FUNCTIONS --- #
 
     def change_persist_state(self):
@@ -545,7 +547,6 @@ class MainWindow(QtWidgets.QMainWindow):
             error_dialog.setWindowTitle("Error")
             error_dialog.exec_()
 
-
 class PlotCanvas(FigureCanvas):
     '''
     This class is for the figure that displays the data, it reads data off the data queue and updates the graph depending on the settings.
@@ -563,7 +564,6 @@ class PlotCanvas(FigureCanvas):
 
         self.peak_freq = None
         self.peak_mag = None
-
         self.q_factor = None
         self.fit_freq = None
         self.fit_data = None
@@ -656,7 +656,6 @@ class PlotCanvas(FigureCanvas):
         if self.phase:
             self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5, label='Phase')
         
-        # --- Plot peak marker ---
         if self.peak_freq is not None and self.peak_mag is not None:
             self.mag_ax.annotate(f'Peak\n{self.peak_mag:.2f} dBm',
                 xy=(self.peak_freq, self.peak_mag),
