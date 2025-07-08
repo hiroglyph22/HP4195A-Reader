@@ -1,13 +1,12 @@
 import sys
 import os
 import time
-# Telnetlib is no longer needed
 import multiprocessing
 import numpy as np
 import logging
 import logging.handlers
-import pyvisa # Import the new library
-import csv # <-- ADDED: Import the csv module
+import pyvisa
+import csv
 
 class hp4195a(multiprocessing.Process):
     def __init__(self, command_queue, message_queue, data_queue, logger_queue):
@@ -21,11 +20,9 @@ class hp4195a(multiprocessing.Process):
         self.phase_data = []
         self.freq_data = []
 
-        # --- MODIFIED: Replaced Telnet/GPIB attributes with VISA resource name ---
-        # Replace this with the address you found in Step 2
         self.visa_resource_name = 'GPIB0::17::INSTR' 
         self.device_id = 'HP4195A'
-        self.instrument = None # This will hold the connection to the instrument
+        self.instrument = None
         self.rm = None # This is the pyvisa resource manager
 
     def run(self):
@@ -43,7 +40,6 @@ class hp4195a(multiprocessing.Process):
             self.command = self.command_queue.get()
             self.logger.info('Received \"{}\" from GUI'.format(self.command))
             
-            # --- MODIFIED: Calls new connect/disconnect methods ---
             if self.command == 'connect':
                 self.logger.info('Connecting to HP4195A via VISA')
                 self.visa_connect()
@@ -53,7 +49,6 @@ class hp4195a(multiprocessing.Process):
                 self.visa_disconnect()
 
             elif self.command == 'start_acquisition':
-                # This part of the logic remains the same
                 self.logger.info('Starting data acquisition')
                 if self.acquire_mag_data():
                     if self.acquire_phase_data():
@@ -97,7 +92,7 @@ class hp4195a(multiprocessing.Process):
                 self.message_queue.put(True)
 
             elif self.command == 'single_sweep':
-                self.single_sweep()
+                self.single_sweep(20)
 
             elif self.command == 'set_center_frequency':
                 center_freq_hz = self.command_queue.get()
@@ -113,9 +108,9 @@ class hp4195a(multiprocessing.Process):
 
             elif self.command == 'low_res_sweep':
                 self.logger.info('Starting low resolution sweep')
-                self.send_command('RWM = 10 HZ')
-                self.single_sweep()
-                self.send_command('RWM = 300 HZ')
+                self.send_command('RBW = 100 HZ')
+                self.single_sweep(45)
+                self.send_command('RBW = 300 HZ')
 
 
     def visa_connect(self):
@@ -185,14 +180,14 @@ class hp4195a(multiprocessing.Process):
                 return "Query failed"
         return "Not connected"
     
-    def single_sweep(self):
+    def single_sweep(self, sleepDuration):
         self.logger.info('Starting single sweep')
         
         # Trigger a single sweep
         self.send_command('SWM2')
         self.send_command('SWTRG')
 
-        time.sleep(20)
+        time.sleep(sleepDuration)
 
         self.logger.info('Sweep complete. Acquiring data.')
 
@@ -209,7 +204,6 @@ class hp4195a(multiprocessing.Process):
                         self.data_queue.put(self.mag_data)
                         self.data_queue.put(self.phase_data)
                         self.data_queue.put(self.freq_data)
-                        self.send_command('SWM1')
                     else:
                         self.logger.warning('Data length check failed.')
                         self.message_queue.put(False)

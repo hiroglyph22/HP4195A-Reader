@@ -65,11 +65,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_pause_button()
         self.generate_center_on_peak_button()
         self.generate_peak_scan_section()
+        self.generate_low_res_sweep_button() # Added button
 
         self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
         self.save_button.setEnabled(True)
         self.autofind_peak_button.setEnabled(False)
+        self.peak_scan_button.setEnabled(False)
+        self.low_res_sweep_button.setEnabled(False)
+
 
         self.show()
 
@@ -77,7 +81,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.start_acquisition)
 
-    # --- GENERATE UI FUNCTIONS --- # 
+    # --- GENERATE UI FUNCTIONS --- #
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -227,8 +231,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.peak_scan_button.move(660, 935)
         self.peak_scan_button.resize(180, 30)
         self.peak_scan_button.clicked.connect(self.start_peak_scan)
+        
+    def generate_low_res_sweep_button(self):
+        self.low_res_sweep_button = QtWidgets.QPushButton('Low Res Sweep', self)
+        self.low_res_sweep_button.setToolTip('Perform a quick, low-resolution sweep of the full spectrum')
+        self.low_res_sweep_button.move(850, 935) # Position next to the "Scan" button
+        self.low_res_sweep_button.resize(180, 30)
+        self.low_res_sweep_button.clicked.connect(self.start_low_res_sweep)
 
-    # --- OTHER FUNCTIONS --- # 
+    # --- OTHER FUNCTIONS --- #
 
     def change_persist_state(self):
         if self.graph.persist:
@@ -279,6 +290,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Connect")
                 self.acquire_button.setEnabled(False)
+                self.peak_scan_button.setEnabled(False) 
+                self.low_res_sweep_button.setEnabled(False) 
                 self.connected = False
             else:
                 self.logger.info('Disconnection from HP4195 failed')
@@ -291,6 +304,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QApplication.restoreOverrideCursor()
                 self.connect_button.setText("Disconnect")
                 self.acquire_button.setEnabled(True)
+                self.peak_scan_button.setEnabled(True) 
+                self.low_res_sweep_button.setEnabled(True) 
                 self.connected = True
                 self.timer.start()
             else:
@@ -307,7 +322,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QApplication.restoreOverrideCursor()
             self.save_button.setEnabled(True)
             self.autofind_peak_button.setEnabled(True)
-            self.center_peak_button.setEnabled(False) 
+            self.center_peak_button.setEnabled(False)
             self.graph.peak_freq = None
             self.graph.peak_mag = None
             self.graph.plot()
@@ -401,14 +416,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.timer.start()
             self.pause_button.setText('Pause')
             self.logger.info('Data acquisition resumed')
-    
+
     def center_on_peak(self):
         if self.graph.peak_freq is not None:
             peak_frequency = self.graph.peak_freq
             self.logger.info(f'Centering on peak frequency: {peak_frequency / 1e3:.2f} KHz')
             self.command_queue.put('set_center_frequency')
             self.command_queue.put(peak_frequency)
-            
+
             # After centering, trigger a new data acquisition to refresh the plot
             self.start_acquisition()
         else:
@@ -421,23 +436,21 @@ class MainWindow(QtWidgets.QMainWindow):
             # Validate that both inputs are numbers
             center_freq = float(freq_text)
             span_freq = float(span_text) # Use the value from the UI
-            
+
             self.logger.info(f'Starting peak scan around {center_freq / 1e3:.2f} kHz with a {span_freq / 1e3:.2f} kHz span')
-            
+
             self.command_queue.put('set_center_and_span')
             self.command_queue.put(center_freq)
             self.command_queue.put(span_freq)
 
             if self.message_queue.get():
                 self.logger.info('Center and span set successfully.')
-                
+
                 self.command_queue.put('single_sweep')
                 if self.message_queue.get():
                     self.start_acquisition()
                     self.autofind_peak()
                     self.center_on_peak()
-                    if self.message_queue.get():
-                        self.command_queue.put('low_res_sweep')
             else:
                 self.logger.error('Failed to set center and span on the instrument.')
 
@@ -449,7 +462,18 @@ class MainWindow(QtWidgets.QMainWindow):
             error_dialog.setInformativeText("Please enter a valid number for frequency and span.")
             error_dialog.setWindowTitle("Error")
             error_dialog.exec_()
-
+            
+    def start_low_res_sweep(self):
+        self.logger.info('Starting low-resolution sweep.')
+        self.command_queue.put('low_res_sweep')
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        if self.message_queue.get():
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.info('Low-resolution sweep complete. Acquiring data.')
+            self.start_acquisition()
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.logger.error('Failed to perform low-resolution sweep.')
 
 class PlotCanvas(FigureCanvas):
     '''
@@ -482,8 +506,8 @@ class PlotCanvas(FigureCanvas):
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
-                                      QtWidgets.QSizePolicy.Expanding,
-                                      QtWidgets.QSizePolicy.Expanding)
+                                   QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.plot()
 
@@ -540,7 +564,7 @@ class PlotCanvas(FigureCanvas):
 
         if self.phase:
             self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5)
-        
+
         # peak marker
         if self.peak_freq is not None and self.peak_mag is not None:
             self.mag_ax.annotate(f'Peak\n{self.peak_mag:.2f} dBm',
