@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
 
         self.title = 'HP4195A'
         self.width = 1920
-        self.height = 1080
+        self.height = 1120 # <-- MODIFIED: Increased height
         
         self.qh = logging.handlers.QueueHandler(self.logging_queue)
         self.root = logging.getLogger()
@@ -37,7 +37,8 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
 
         self.connected = False
         self.initUI()
-
+    
+    # ... (rest of main_window.py is unchanged) ...
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setFixedSize(self.width, self.height)
@@ -64,6 +65,7 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
         self.generate_command_box()
         self.generate_command_button()
         self.generate_response_box()
+        self.generate_power_control_section()
 
         # Set initial button states
         self.acquire_button.setEnabled(False)
@@ -74,6 +76,7 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
         self.low_res_sweep_button.setEnabled(False)
         self.range_scan_button.setEnabled(False)
         self.command_button.setEnabled(False)
+        self.power_sweep_button.setEnabled(False)
         
         self.show()
 
@@ -115,6 +118,7 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
                 self.peak_scan_button.setEnabled(False) 
                 self.low_res_sweep_button.setEnabled(False)
                 self.range_scan_button.setEnabled(False)
+                self.power_sweep_button.setEnabled(False)
         else:
             self.command_queue.put('connect')
             if self.message_queue.get():
@@ -124,6 +128,7 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
                 self.peak_scan_button.setEnabled(True) 
                 self.low_res_sweep_button.setEnabled(True)
                 self.range_scan_button.setEnabled(True)
+                self.power_sweep_button.setEnabled(True)
                 self.timer.start()
 
     def start_acquisition(self):
@@ -265,6 +270,48 @@ class MainWindow(QtWidgets.QMainWindow, UIGenerator):
         except (RuntimeError, ValueError) as e:
             self.show_error_dialog("Fit Failed", "Could not calculate Q-Factor. The data may not resemble a resonance peak.")
             
+    def start_power_sweep(self):
+        try:
+            start_p = float(self.start_power_input.text())
+            stop_p = float(self.stop_power_input.text())
+            step_p = float(self.step_power_input.text())
+
+            if step_p <= 0:
+                self.show_error_dialog("Invalid Step", "Power step must be a positive number.")
+                return
+            if start_p > stop_p:
+                self.show_error_dialog("Invalid Range", "Start power cannot be greater than stop power.")
+                return
+            
+            save_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory to Save Power Sweep Data")
+            if not save_dir:
+                self.logger.info("Power sweep cancelled by user.")
+                return
+            
+            self.logger.info(f"Starting power sweep from {start_p} to {stop_p} dBm, saving to {save_dir}")
+            
+            self.power_sweep_button.setEnabled(False)
+
+            self.command_queue.put('start_power_sweep')
+            self.command_queue.put({
+                "start": start_p,
+                "stop": stop_p,
+                "step": step_p,
+                "dir": save_dir
+            })
+            
+            if self.message_queue.get():
+                self.logger.info("Power sweep completed successfully.")
+                QtWidgets.QMessageBox.information(self, "Sweep Complete", "Power sweep finished and all files have been saved.")
+            else:
+                self.logger.error("Power sweep failed or was interrupted in the backend.")
+            
+            self.power_sweep_button.setEnabled(True)
+
+        except ValueError:
+            self.show_error_dialog("Invalid Input", "Please enter valid numbers for power sweep parameters.")
+
+
     def show_error_dialog(self, title, text):
         error_dialog = QtWidgets.QMessageBox()
         error_dialog.setIcon(QtWidgets.QMessageBox.Warning)

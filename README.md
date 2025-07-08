@@ -16,6 +16,7 @@ A Python program for connecting to and interfacing with a HP4195A Network/Spectr
 - Matplotlib
 - Markdown
 - cx_Freeze
+- scipy
 
 ### Supporting Documents
 The following documents provide useful information regarding the 4195A Network/Spectrum Analyser and the Prologix GPIB-ETHERNET Controller including GPIB command definitions and data register names:
@@ -37,6 +38,29 @@ The software can also be built into an executable with cx_Freeze. From the proje
 ```
 python setup.py build
 ```
+
+### Todo
+
+- [x]  Get continuous plot
+    - [x]  Automatically updates plot but also needs to automatically acquire data
+- [x]  Auto Span and Center functionality
+    - [x]  Find peak of the graph
+    - [x]  Add pause and resume auto-updating
+    - [x]  Figure out how to span with GPIB
+    - [x]  Figure out how to center with GPIB
+    - [x]  Get estimated input from user
+        - [x]  Add button
+    - [x]  Do a single sweep at 10 Hz
+- [x]  Auto Span and Center Update
+    - [x]  Add additional low-resolution sweep that makes it look better
+- [x]  Find how long it takes to sweep given a certain resolution
+- [x]  Finding q-factor
+- [ ]  Overlapping graph
+    - [x]  Get user input for range of frequencies
+    - [ ]  Change amplitude and do a sweep per certain amplitude
+    - [ ]  Have graph overlay for amplitude frequency while the next amplitude curve is being swept
+    - [ ]  Pop up another window when data for all range of amplitudes are selected
+- [ ]  Put UI generating function calls in UI_generator
 
 ### License
 
