@@ -8,7 +8,7 @@ from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FuncFormatter
-
+from scipy.optimize import curve_fit 
 
 class MainWindow(QtWidgets.QMainWindow):
     '''
@@ -65,7 +65,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_pause_button()
         self.generate_center_on_peak_button()
         self.generate_peak_scan_section()
-        self.generate_low_res_sweep_button() # Added button
+        self.generate_low_res_sweep_button() 
+        self.generate_q_factor_button()
+
 
         self.center_peak_button.setEnabled(False)
         self.acquire_button.setEnabled(False)
@@ -73,6 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.autofind_peak_button.setEnabled(False)
         self.peak_scan_button.setEnabled(False)
         self.low_res_sweep_button.setEnabled(False)
+        self.q_factor_button.setEnabled(False)
 
 
         self.show()
@@ -239,6 +242,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.low_res_sweep_button.resize(180, 30)
         self.low_res_sweep_button.clicked.connect(self.start_low_res_sweep)
 
+    def generate_q_factor_button(self):
+        self.q_factor_button = QtWidgets.QPushButton('Calculate Q-Factor', self)
+        self.q_factor_button.setToolTip('Fit a curve and calculate the Q-Factor from the peak')
+        self.q_factor_button.move(1720, 630) # Position below "Center on Peak"
+        self.q_factor_button.resize(180, 100)
+        self.q_factor_button.clicked.connect(self.calculate_q_factor)
+        
+        
     # --- OTHER FUNCTIONS --- #
 
     def change_persist_state(self):
@@ -323,6 +334,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.save_button.setEnabled(True)
             self.autofind_peak_button.setEnabled(True)
             self.center_peak_button.setEnabled(False)
+            self.q_factor_button.setEnabled(False)
+            self.graph.clear_q_factor_data()
             self.graph.peak_freq = None
             self.graph.peak_mag = None
             self.graph.plot()
@@ -347,6 +360,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Set the marker on the plot canvas
             self.graph.mark_peak(peak_freq, peak_mag)
             self.center_peak_button.setEnabled(True)
+            self.q_factor_button.setEnabled(True) 
             self.graph.plot() # Redraw the plot to show the marker
         except (ValueError, IndexError) as e:
             self.logger.error(f'Could not find peak. Error: {e}')
@@ -475,6 +489,64 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QApplication.restoreOverrideCursor()
             self.logger.error('Failed to perform low-resolution sweep.')
 
+    def calculate_q_factor(self):
+        if self.graph.peak_freq is None:
+            self.logger.warning('Cannot calculate Q-Factor. No peak has been found.')
+            return
+
+        self.logger.info('Calculating Q-Factor from peak using Lorentzian fit.')
+        
+        # --- Helper function for Lorentzian model ---
+        def _lorentzian(x, amp, cen, fwhm):
+            return amp * (fwhm/2)**2 / ((x - cen)**2 + (fwhm/2)**2)
+
+        # --- Get data from the graph ---
+        x_data = np.array(self.graph.freq_data)
+        y_data_dbm = np.array(self.graph.mag_data)
+
+        # --- Convert magnitude from dBm to linear scale (mW) for fitting ---
+        y_data_linear = 10**(y_data_dbm / 10)
+        
+        # --- Get peak parameters for an initial guess ---
+        peak_freq = self.graph.peak_freq
+        peak_mag_linear = 10**(self.graph.peak_mag / 10)
+        
+        # --- Initial guess for the fit parameters [amplitude, center, FWHM] ---
+        initial_fwhm = (np.max(x_data) - np.min(x_data)) / 10
+        p0 = [peak_mag_linear, peak_freq, initial_fwhm]
+        
+        try:
+            # --- Perform the curve fit ---
+            popt, _ = curve_fit(_lorentzian, x_data, y_data_linear, p0=p0, maxfev=5000)
+            
+            # --- Extract fitted parameters ---
+            fit_amp, fit_center_freq, fit_fwhm = popt
+            
+            # --- The Q-Factor is the center frequency divided by the FWHM ---
+            q_factor = abs(fit_center_freq / fit_fwhm)
+            
+            self.logger.info(f'Fit successful. Center Freq: {fit_center_freq/1e3:.2f} KHz, FWHM: {abs(fit_fwhm)/1e3:.2f} KHz, Q-Factor: {q_factor:.2f}')
+            
+            # --- Generate smooth curve from the fit for plotting ---
+            fit_freq_range = np.linspace(x_data.min(), x_data.max(), 400)
+            fit_data_linear = _lorentzian(fit_freq_range, *popt)
+            
+            # --- Convert fitted data back to dBm for plotting ---
+            fit_data_dbm = 10 * np.log10(fit_data_linear)
+            
+            # --- Send data to the plot canvas ---
+            self.graph.set_q_factor_data(fit_freq_range, fit_data_dbm, q_factor)
+            self.graph.plot() # Redraw the graph
+
+        except (RuntimeError, ValueError) as e:
+            self.logger.error(f'Could not fit Lorentzian to data. Error: {e}')
+            error_dialog = QtWidgets.QMessageBox()
+            error_dialog.setIcon(QtWidgets.QMessageBox.Warning)
+            error_dialog.setText("Fit Failed")
+            error_dialog.setInformativeText("Could not calculate Q-Factor. The data may not resemble a resonance peak.")
+            error_dialog.setWindowTitle("Error")
+            error_dialog.exec_()
+
 class PlotCanvas(FigureCanvas):
     '''
     This class is for the figure that displays the data, it reads data off the data queue and updates the graph depending on the settings.
@@ -492,6 +564,9 @@ class PlotCanvas(FigureCanvas):
 
         self.peak_freq = None
         self.peak_mag = None
+        self.q_factor = None
+        self.fit_freq = None
+        self.fit_data = None
 
         self.freq_data = range(1, 100)
         self.mag_data = [0 for i in range(1, 100)]
@@ -516,6 +591,18 @@ class PlotCanvas(FigureCanvas):
         self.peak_freq = freq
         self.peak_mag = mag
 
+    def set_q_factor_data(self, fit_freq, fit_data, q_factor):
+        '''Saves the fitted curve data and Q-Factor to be plotted.'''
+        self.fit_freq = fit_freq
+        self.fit_data = fit_data
+        self.q_factor = q_factor
+
+    def clear_q_factor_data(self):
+        '''Clears the Q-Factor data before a new acquisition.'''
+        self.q_factor = None
+        self.fit_freq = None
+        self.fit_data = None
+
     def plot(self):
         from queue import Empty
         if self.persist == False:
@@ -537,10 +624,15 @@ class PlotCanvas(FigureCanvas):
         self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
         self.phase_ax.yaxis.set_label_position('right')
 
-        self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
-        self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
-        self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
-        self.mag_ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
+        # Set Y-limits with some padding
+        if len(self.mag_data) > 1 and len(self.phase_data) > 1:
+            self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
+            self.mag_ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
+        
+        # Set X-limits
+        if len(self.freq_data) > 1:
+            self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
+            self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
 
         self.mag_ax.tick_params(axis='x', colors='white')
         self.mag_ax.tick_params(axis='y', colors='yellow')
@@ -558,14 +650,12 @@ class PlotCanvas(FigureCanvas):
 
 
         # --- Plotting ---
-        # Matplotlib handles empty lists gracefully, so this will not error on startup
         if self.magnitude:
-            self.mag_ax.plot(self.freq_data, self.mag_data, color='yellow', linewidth=1.5)
+            self.mag_ax.plot(self.freq_data, self.mag_data, color='yellow', linewidth=1.5, label='Magnitude')
 
         if self.phase:
-            self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5)
-
-        # peak marker
+            self.phase_ax.plot(self.freq_data, self.phase_data, color='cyan', linewidth=1.5, label='Phase')
+        
         if self.peak_freq is not None and self.peak_mag is not None:
             self.mag_ax.annotate(f'Peak\n{self.peak_mag:.2f} dBm',
                 xy=(self.peak_freq, self.peak_mag),
@@ -576,7 +666,26 @@ class PlotCanvas(FigureCanvas):
                 arrowprops=dict(facecolor='red', shrink=0.05, width=2, headwidth=8)
             )
 
+        # --- Plot Q-Factor fit and annotation ---
+        if self.q_factor is not None:
+            # Plot the fitted curve as a dashed red line
+            self.mag_ax.plot(self.fit_freq, self.fit_data, 'r--', linewidth=2, label=f'Lorentzian Fit')
+            # Add a text box with the Q-Factor value in the top-left corner
+            self.mag_ax.text(0.02, 0.95, f'Q-Factor: {self.q_factor:.2f}',
+                             transform=self.mag_ax.transAxes,
+                             fontsize=14,
+                             verticalalignment='top',
+                             bbox=dict(boxstyle='round', facecolor='black', alpha=0.5),
+                             color='white')
+
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
+
+        # Add a legend
+        if self.magnitude or self.q_factor is not None:
+             self.mag_ax.legend(loc='lower left')
+        if self.phase:
+             self.phase_ax.legend(loc='lower right')
+
 
         self.fig.tight_layout()
         self.draw()
