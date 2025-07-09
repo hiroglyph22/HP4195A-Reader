@@ -45,14 +45,14 @@ class MainWindow(QtWidgets.QMainWindow,
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setFixedSize(self.width, self.height)
-        self.setWindowIcon(QIcon('icon.png'))
+        self.setWindowIcon(QIcon('assets/icon.png'))
 
         self.graph = PlotCanvas(self, data_queue=self.data_queue, width=17, height=8.5)
         self.graph.move(0,20)
 
         # Call all the UI generation methods from the UIGenerator mixin
         self.generate_UI()
-        
+
         # Set initial button states
         self.acquire_button.setEnabled(False)
         self.autofind_peak_button.setEnabled(False)

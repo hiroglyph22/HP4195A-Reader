@@ -30,7 +30,7 @@ if __name__ == '__main__':
     else:
         dir_name = os.path.dirname(__file__)
 
-    log_file_path = os.path.join(dir_name, 'logging.conf')
+    log_file_path = os.path.join(dir_name, '../logging.conf')
 
     logging.config.fileConfig(log_file_path, disable_existing_loggers=False)
     lp = threading.Thread(target=ml.logger_thread, args=(logging_queue,))
