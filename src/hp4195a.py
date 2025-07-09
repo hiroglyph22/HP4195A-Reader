@@ -25,6 +25,91 @@ class hp4195a(multiprocessing.Process):
         self.instrument = None
         self.rm = None # This is the pyvisa resource manager
 
+    # NEW helper method
+    def handle_command(self, command):
+        """Processes a single command from the queue."""
+        self.logger.info('Received \"{}\" from GUI'.format(command))
+
+        if command == 'connect':
+            self.logger.info('Connecting to HP4195A via VISA')
+            self.visa_connect()
+
+        elif command == 'disconnect':
+            self.logger.info('Disconnecting from HP4195A')
+            self.visa_disconnect()
+
+        elif command == 'start_acquisition':
+            self.logger.info('Starting data acquisition')
+            if self.acquire_mag_data():
+                if self.acquire_phase_data():
+                    if self.acquire_freq_data():
+                        self.logger.info('Acquired data OK')
+                    else:
+                        self.logger.warning('Frequency data acquisition failed')
+                        self.message_queue.put(False)
+                else:
+                    self.logger.warning('Phase data acquisition failed')
+                    self.message_queue.put(False)
+            else:
+                self.logger.warning('Magnitude data acquisition failed')
+                self.message_queue.put(False)
+
+            mag_check = len(self.mag_data) == len(self.freq_data)
+            phase_check = len(self.phase_data) == len(self.freq_data)
+
+            if mag_check and phase_check:
+                self.logger.info('Data length check passed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
+
+                self.message_queue.put(True)
+                self.data_queue.put(self.mag_data)
+                self.data_queue.put(self.phase_data)
+                self.data_queue.put(self.freq_data)
+                self.mag_data = []
+                self.phase_data = []
+                self.freq_data = []
+            else:
+                self.logger.warning('Data length check failed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
+                self.message_queue.put(False)
+
+        elif command == 'set_center_and_span':
+            center_freq = self.command_queue.get()
+            span_freq = self.command_queue.get()
+
+            self.send_command(f"CENTER = {center_freq} HZ")
+            self.send_command(f"SPAN = {span_freq} HZ")
+
+            # Send a confirmation message back to the UI
+            self.message_queue.put(True)
+
+        elif command == 'set_start_stop':
+            start_freq = self.command_queue.get()
+            stop_freq = self.command_queue.get()
+            self.send_command(f"START = {start_freq} HZ")
+            self.send_command(f"STOP = {stop_freq} HZ")
+            # Send a confirmation message back to the UI
+            self.message_queue.put(True)
+
+        elif command == 'single_sweep':
+            self.single_sweep(20)
+
+        elif command == 'set_center_frequency':
+            center_freq_hz = self.command_queue.get()
+            command_string = f"CENTER = {center_freq_hz} HZ"
+            self.send_command(command_string)
+
+        elif command == 'send_command':
+            self.command = self.command_queue.get()
+            self.logger.info('Sending GPIB command: {}'.format(self.command))
+            self.response = self.send_query(self.command)
+            self.logger.info('Response: {}'.format(self.response))
+            self.data_queue.put(self.response)
+
+        elif command == 'low_res_sweep':
+            self.logger.info('Starting low resolution sweep')
+            self.send_command('RBW = 100 HZ')
+            self.single_sweep(45)
+            self.send_command('RBW = 300 HZ')
+
     def run(self):
         '''
         This function will run when the class is launched as a separate
@@ -37,88 +122,9 @@ class hp4195a(multiprocessing.Process):
         self.logger = logging.getLogger(__name__)
 
         while True:
-            self.command = self.command_queue.get()
-            self.logger.info('Received \"{}\" from GUI'.format(self.command))
-            
-            if self.command == 'connect':
-                self.logger.info('Connecting to HP4195A via VISA')
-                self.visa_connect()
-
-            elif self.command == 'disconnect':
-                self.logger.info('Disconnecting from HP4195A')
-                self.visa_disconnect()
-
-            elif self.command == 'start_acquisition':
-                self.logger.info('Starting data acquisition')
-                if self.acquire_mag_data():
-                    if self.acquire_phase_data():
-                        if self.acquire_freq_data():
-                            self.logger.info('Acquired data OK')
-                        else:
-                            self.logger.warning('Frequency data acquisition failed')
-                            self.message_queue.put(False)
-                    else:
-                        self.logger.warning('Phase data acquisition failed')
-                        self.message_queue.put(False)
-                else:
-                    self.logger.warning('Magnitude data acquisition failed')
-                    self.message_queue.put(False)
-
-                mag_check = len(self.mag_data) == len(self.freq_data)
-                phase_check = len(self.phase_data) == len(self.freq_data)
-
-                if mag_check and phase_check:
-                    self.logger.info('Data length check passed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
-
-                    self.message_queue.put(True)
-                    self.data_queue.put(self.mag_data)
-                    self.data_queue.put(self.phase_data)
-                    self.data_queue.put(self.freq_data)
-                    self.mag_data = []
-                    self.phase_data = []
-                    self.freq_data = []
-                else:
-                    self.logger.warning('Data length check failed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
-                    self.message_queue.put(False)
-
-            elif self.command == 'set_center_and_span':
-                center_freq = self.command_queue.get()
-                span_freq = self.command_queue.get()
-
-                self.send_command(f"CENTER = {center_freq} HZ")
-                self.send_command(f"SPAN = {span_freq} HZ")
-
-                # Send a confirmation message back to the UI
-                self.message_queue.put(True)
-
-            elif self.command == 'set_start_stop':
-                start_freq = self.command_queue.get()
-                stop_freq = self.command_queue.get()
-                self.send_command(f"START = {start_freq} HZ")
-                self.send_command(f"STOP = {stop_freq} HZ")
-                # Send a confirmation message back to the UI
-                self.message_queue.put(True)
-
-            elif self.command == 'single_sweep':
-                self.single_sweep(20)
-
-            elif self.command == 'set_center_frequency':
-                center_freq_hz = self.command_queue.get()
-                command_string = f"CENTER = {center_freq_hz} HZ"
-                self.send_command(command_string)
-
-            elif self.command == 'send_command':
-                self.command = self.command_queue.get()
-                self.logger.info('Sending GPIB command: {}'.format(self.command))
-                self.response = self.send_query(self.command)
-                self.logger.info('Response: {}'.format(self.response))
-                self.data_queue.put(self.response)
-
-            elif self.command == 'low_res_sweep':
-                self.logger.info('Starting low resolution sweep')
-                self.send_command('RBW = 100 HZ')
-                self.single_sweep(45)
-                self.send_command('RBW = 300 HZ')
+            command = self.command_queue.get()
+            self.logger.info('Received \"{}\" from GUI'.format(command))
+            self.handle_command(command)
 
 
     def visa_connect(self):

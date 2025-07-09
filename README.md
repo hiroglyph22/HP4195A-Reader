@@ -39,6 +39,12 @@ The software can also be built into an executable with cx_Freeze. From the proje
 python setup.py build
 ```
 
+### Testing
+
+```
+python -m pytest
+```
+
 ### Todo
 
 - [x]  Get continuous plot
@@ -60,7 +66,9 @@ python setup.py build
     - [ ]  Change amplitude and do a sweep per certain amplitude
     - [ ]  Have graph overlay for amplitude frequency while the next amplitude curve is being swept
     - [ ]  Pop up another window when data for all range of amplitudes are selected
-- [ ]  Put UI generating function calls in UI_generator
+- [x]  Put UI generating function calls in UI_generator
+- [ ]  Add initial test suite
+    - [ ] Update test_set_output_power in tests
 
 ### License
 
