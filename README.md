@@ -16,7 +16,7 @@ A Python program for connecting to and interfacing with a HP4195A Network/Spectr
 - Matplotlib
 - Markdown
 - cx_Freeze
-- scipy
+- Scipy
 
 ### Supporting Documents
 The following documents provide useful information regarding the 4195A Network/Spectrum Analyser and the Prologix GPIB-ETHERNET Controller including GPIB command definitions and data register names:
@@ -30,7 +30,7 @@ The following documents provide useful information regarding the 4195A Network/S
 To run the program install the dependencies as specified above using pip, conda or a similar package management system. Then clone this repository, navigate to the project directory in a command terminal and type
 
 ```
-python hp4195a_reader.py
+python src/main.py
 ```
 
 The software can also be built into an executable with cx_Freeze. From the project directory run the following command in a terminal window

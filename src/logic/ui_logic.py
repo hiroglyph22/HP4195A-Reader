@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from help_window import Help_Window
+from gui.help_window import Help_Window
 
 class UiLogic:
     def toggle_connect_button(self):

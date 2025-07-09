@@ -3,13 +3,12 @@ import logging.handlers
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QIcon
 
-# Local imports for refactored components
-from ui_generator import UIGenerator
-from plot_canvas import PlotCanvas
-from instrument_controls import InstrumentControls
-from plot_controls import PlotControls
-from file_handler import FileHandler
-from ui_logic import UiLogic
+from gui.ui_generator import UIGenerator
+from gui.plot_canvas import PlotCanvas
+from logic.instrument_controls import InstrumentControls
+from logic.plot_controls import PlotControls
+from logic.file_handler import FileHandler
+from logic.ui_logic import UiLogic
 
 class MainWindow(QtWidgets.QMainWindow, 
                  UIGenerator, 
