@@ -6,6 +6,26 @@ class UIGenerator:
     A mixin class to hold all the UI generation methods, keeping the
     MainWindow class cleaner and focused on logic.
     '''
+    def generate_UI(self):
+        self.generate_menu_bar()
+        self.generate_connection_button()
+        self.generate_acquire_button()
+        self.generate_save_button()
+        self.generate_autofind_peak_button()
+        self.generate_pause_button()
+        self.generate_center_on_peak_button()
+        self.generate_q_factor_button()
+        self.generate_persistance_checkbox()
+        self.generate_mag_enable_checkbox()
+        self.generate_phase_enable_checkbox()
+        self.generate_peak_scan_section()
+        self.generate_low_res_sweep_button() 
+        self.generate_range_scan_section()
+        self.generate_command_box()
+        self.generate_command_button()
+        self.generate_response_box()
+        self.generate_power_control_section()
+
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
         self.file_menu = self.main_menu.addMenu('File')
