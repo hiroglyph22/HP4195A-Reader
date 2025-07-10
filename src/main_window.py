@@ -82,6 +82,13 @@ class MainWindow(QtWidgets.QMainWindow,
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.start_acquisition)
 
+    def runOnUiThread(self, f):
+        QtCore.QMetaObject.invokeMethod(self, 'do_runOnUiThread', QtCore.Qt.QueuedConnection, QtCore.Q_ARG(object, f))
+
+    @QtCore.pyqtSlot(object)
+    def do_runOnUiThread(self, f):
+        f()
+
     def closeEvent(self, event):
         if self.connected:
             # Simulate putting a 'True' on the queue for the disconnect to complete

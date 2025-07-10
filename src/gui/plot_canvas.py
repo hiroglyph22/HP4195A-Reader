@@ -10,7 +10,7 @@ class PlotCanvas(FigureCanvas):
     This class is for the figure that displays the data. It reads data
     from the data queue and updates the graph depending on the settings.
     '''
-    def __init__(self, parent=None, data_queue=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, data_queue=None, width=5, height=4, dpi=100, auto_plot=True):
         self.data_queue = data_queue
         self.persist = False
         self.magnitude = True
@@ -39,7 +39,12 @@ class PlotCanvas(FigureCanvas):
                                    QtWidgets.QSizePolicy.Expanding,
                                    QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
-        self.plot()
+        
+        if auto_plot:
+            self.plot()
+        else:
+            self.apply_styles()
+            self.draw()
 
     def mark_peak(self, freq, mag):
         '''Saves the coordinates of the peak to be marked on the plot.'''
@@ -58,6 +63,28 @@ class PlotCanvas(FigureCanvas):
         self.fit_freq = None
         self.fit_data = None
 
+    def apply_styles(self):
+        self.mag_ax.set_xlabel('Frequency (Hz)', color='white')
+        self.mag_ax.set_ylabel('Magnitude (dBm)', color='yellow')
+        self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
+        self.phase_ax.yaxis.set_label_position('right')
+
+        self.mag_ax.tick_params(axis='x', colors='white')
+        self.mag_ax.tick_params(axis='y', colors='yellow')
+        self.phase_ax.tick_params(axis='y', colors='cyan')
+
+        for spine in self.mag_ax.spines.values():
+            spine.set_edgecolor('white')
+        self.phase_ax.spines['right'].set_edgecolor('cyan')
+        self.mag_ax.spines['left'].set_edgecolor('yellow')
+
+        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.0f} KHz'))
+        self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
+        self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
+        
+        self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
+        self.fig.tight_layout()
+
     def plot(self):
         if not self.persist:
             self.mag_ax.clear()
@@ -72,12 +99,8 @@ class PlotCanvas(FigureCanvas):
             # If the queue is empty, just redraw the existing data
             pass
 
-        # --- Style Configuration ---
-        self.mag_ax.set_xlabel('Frequency (Hz)', color='white')
-        self.mag_ax.set_ylabel('Magnitude (dBm)', color='yellow')
-        self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
-        self.phase_ax.yaxis.set_label_position('right')
-
+        self.apply_styles()
+        
         if len(self.mag_data) > 1 and len(self.phase_data) > 1:
             self.phase_ax.set_ylim(np.min(self.phase_data)-20, np.max(self.phase_data)+20)
             self.mag_ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
@@ -86,20 +109,6 @@ class PlotCanvas(FigureCanvas):
             self.phase_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
             self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
 
-        self.mag_ax.tick_params(axis='x', colors='white')
-        self.mag_ax.tick_params(axis='y', colors='yellow')
-        self.phase_ax.tick_params(axis='y', colors='cyan')
-
-        for spine in self.mag_ax.spines.values():
-            spine.set_edgecolor('white')
-        self.phase_ax.spines['right'].set_edgecolor('cyan')
-        self.mag_ax.spines['left'].set_edgecolor('yellow')
-
-        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.0f} KHz'))
-        self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
-        self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
-
-        # --- Plotting ---
         if self.magnitude:
             self.mag_ax.plot(self.freq_data, self.mag_data, color='yellow', linewidth=1.5, label='Magnitude')
 
@@ -120,12 +129,55 @@ class PlotCanvas(FigureCanvas):
                              verticalalignment='top',
                              bbox=dict(boxstyle='round', facecolor='black', alpha=0.5), color='white')
 
-        self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
-
         if self.magnitude or self.q_factor is not None:
              self.mag_ax.legend(loc='lower left')
         if self.phase:
              self.phase_ax.legend(loc='lower right')
 
+        self.fig.tight_layout()
+        self.draw()
+
+    def update_sweep_plot(self, freq_data, mag_data):
+        self.mag_ax.clear()
+        self.phase_ax.clear()
+        self.apply_styles()
+        self.phase_ax.get_yaxis().set_visible(False)
+        self.phase_ax.spines['right'].set_visible(False)
+        
+        self.mag_ax.plot(freq_data, mag_data, color='yellow', linewidth=1.5)
+        
+        if mag_data is not None and len(mag_data) > 1:
+            self.mag_ax.set_ylim(np.min(mag_data)-5, np.max(mag_data)+5)
+        if freq_data is not None and len(freq_data) > 1:
+            self.mag_ax.set_xlim(np.min(freq_data), np.max(freq_data))
+
+        self.fig.tight_layout()
+        self.draw()
+
+    def update_overlaid_plot(self, all_sweeps):
+        self.mag_ax.clear()
+        self.phase_ax.clear()
+        self.apply_styles()
+        self.phase_ax.get_yaxis().set_visible(False)
+        self.phase_ax.spines['right'].set_visible(False)
+
+        min_mag, max_mag = float('inf'), float('-inf')
+        min_freq, max_freq = float('inf'), float('-inf')
+
+        for i, (freq_data, mag_data) in enumerate(all_sweeps):
+            self.mag_ax.plot(freq_data, mag_data, linewidth=1.5, label=f'Sweep {i+1}')
+            if len(mag_data) > 0:
+                min_mag = min(min_mag, np.min(mag_data))
+                max_mag = max(max_mag, np.max(mag_data))
+            if len(freq_data) > 0:
+                min_freq = min(min_freq, np.min(freq_data))
+                max_freq = max(max_freq, np.max(freq_data))
+        
+        if min_mag != float('inf'):
+            self.mag_ax.set_ylim(min_mag - 5, max_mag + 5)
+        if min_freq != float('inf'):
+            self.mag_ax.set_xlim(min_freq, max_freq)
+
+        self.mag_ax.legend()
         self.fig.tight_layout()
         self.draw()

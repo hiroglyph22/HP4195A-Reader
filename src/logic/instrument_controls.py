@@ -1,4 +1,13 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
+from gui.amplitude_sweep_viewer import AmplitudeSweepViewer
+from threading import Thread
+from queue import Empty
+
+class SweepCommunicator(QtCore.QObject):
+    sweep_data_ready = QtCore.pyqtSignal(object, object)
+    show_viewer = QtCore.pyqtSignal()
+    show_final_plot = QtCore.pyqtSignal()
+    enable_button = QtCore.pyqtSignal(bool)
 
 class InstrumentControls:
     def connect(self):
@@ -101,22 +110,49 @@ class InstrumentControls:
                 return
                         
             self.sweeping_range_of_amplitudes_button.setEnabled(False)
+            
+            sweep_viewer = AmplitudeSweepViewer(self, data_queue=self.data_queue)
+            communicator = SweepCommunicator()
 
-            self.command_queue.put('sweeping_range_of_amplitudes')
-            self.command_queue.put({
-                "start": start_p,
-                "stop": stop_p,
-                "step": step_p,
-                "dir": save_dir
-            })
-            
-            if self.message_queue.get():
-                self.logger.info("Sweeping Range of Amplitudes completed successfully.")
-                QtWidgets.QMessageBox.information(self, "Sweeps Complete", "Sweeping Range of Amplitudes finished and all files have been saved.")
-            else:
-                self.logger.error("Sweeping Range of Amplitudes failed or were interrupted in the backend.")
-            
-            self.sweeping_range_of_amplitudes_button.setEnabled(True)
+            communicator.sweep_data_ready.connect(sweep_viewer.update_sweep)
+            communicator.show_viewer.connect(sweep_viewer.show)
+            communicator.show_final_plot.connect(sweep_viewer.show_final_plot)
+            communicator.enable_button.connect(self.sweeping_range_of_amplitudes_button.setEnabled)
+
+
+            def sweep_thread_func():
+                self.command_queue.put('sweeping_range_of_amplitudes')
+                self.command_queue.put({
+                    "start": start_p,
+                    "stop": stop_p,
+                    "step": step_p,
+                    "dir": save_dir
+                })
+                
+                num_sweeps = int((stop_p - start_p) / step_p) + 1
+                for i in range(num_sweeps):
+                    try:
+                        freq_data = self.data_queue.get(timeout=60)
+                        mag_data = self.data_queue.get(timeout=10)
+                        communicator.sweep_data_ready.emit(freq_data, mag_data)
+                        if i == 0:
+                            communicator.show_viewer.emit()
+
+                    except Empty:
+                        self.logger.error("Timeout waiting for sweep data from backend.")
+                        break
+
+                if self.message_queue.get():
+                    self.logger.info("Sweeping Range of Amplitudes completed successfully.")
+                    communicator.show_final_plot.emit()
+                else:
+                    self.logger.error("Sweeping Range of Amplitudes failed or were interrupted in the backend.")
+                
+                communicator.enable_button.emit(True)
+
+            thread = Thread(target=sweep_thread_func)
+            thread.daemon = True
+            thread.start()
 
         except ValueError:
             self.show_error_dialog("Invalid Input", "Please enter valid numbers for the Sweeping Range of Amplitudes parameters.")

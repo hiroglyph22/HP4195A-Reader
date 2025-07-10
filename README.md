@@ -63,13 +63,14 @@ python -m pytest
 - [x]  Finding q-factor
 - [ ]  Overlapping graph
     - [x]  Get user input for range of frequencies
-    - [ ]  Change amplitude and do a sweep per certain amplitude
-    - [ ]  Have graph overlay for amplitude frequency while the next amplitude curve is being swept
+    - [x]  Change amplitude and do a sweep per certain amplitude
     - [ ]  Pop up another window when data for all range of amplitudes are selected
+    - [ ]  Have a final window with all the data overlayed
 - [x]  Put UI generating function calls in UI_generator
 - [x]  Add initial test suite
     - [ ] Update test_set_output_power in tests
 - [ ]  Clean up hp4195a_interface.py
+- [ ]  Use ENUMS instead of strings for commands
 
 ### License
 

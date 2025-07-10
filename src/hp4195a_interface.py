@@ -122,8 +122,21 @@ class hp4195a_interface(multiprocessing.Process):
                 self.logger.info(f"Setting amplitude to {amp} dBm.")
                 self.send_command(f"OSC1 = {amp} DBM")
                 
-                # The single_sweep function now returns a status instead of using the queue
-                if self.single_sweep(45):
+                # Perform a single sweep and acquire data manually
+                self.send_command('SWM2')
+                self.send_command('SWTRG')
+                time.sleep(45)
+
+                mag_ok = self.acquire_mag_data()
+                phase_ok = self.acquire_phase_data()
+                freq_ok = self.acquire_freq_data()
+
+                if mag_ok and phase_ok and freq_ok:
+                    # Send FREQUENCY then MAGNITUDE to the GUI queue
+                    self.data_queue.put(self.freq_data)
+                    self.data_queue.put(self.mag_data)
+
+                    # Save all data to the CSV file
                     file_name = os.path.join(save_dir, f"amplitude_sweep_{amp}dBm.csv")
                     self.logger.info(f"Saving data to {file_name}")
                     try:
@@ -132,16 +145,16 @@ class hp4195a_interface(multiprocessing.Process):
                             writer.writerow(['Frequency', 'Magnitude', 'Phase'])
                             rows = zip(self.freq_data, self.mag_data, self.phase_data)
                             writer.writerows(rows)
-                        # Re-initialize data lists directly for the next iteration
+                        # Clear data for the next loop
                         self.mag_data, self.phase_data, self.freq_data = [], [], []
                     except IOError as e:
                         self.logger.error(f"Could not write to file {file_name}: {e}")
-                        self.message_queue.put(False) # Send failure message
-                        return # Exit the function
+                        self.message_queue.put(False)
+                        return
                 else:
                     self.logger.error(f"Data acquisition failed at amplitude {amp} dBm.")
-                    self.message_queue.put(False) # Send failure message
-                    return # Exit the function
+                    self.message_queue.put(False)
+                    return
             
             self.logger.info("Amplitude sweep finished successfully.")
             self.message_queue.put(True)
