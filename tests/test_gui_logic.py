@@ -6,33 +6,6 @@ import logging
 # Import the main window
 from src.main_window import MainWindow
 
-@pytest.fixture
-def app(qtbot, queues, mocker):
-    """
-    Creates the main application window for testing and ensures
-    it is properly closed after the test.
-    """
-    # --- Setup ---
-    # Mock all external dependencies and background processes
-    mocker.patch('src.hp4195a.hp4195a')
-    mocker.patch('PyQt5.QtCore.QTimer')
-    
-    # --- THIS IS THE FIX ---
-    # Mock the QueueHandler and configure its instance to have a valid level
-    mock_q_handler = mocker.patch('logging.handlers.QueueHandler')
-    mock_q_handler.return_value.level = logging.NOTSET # Set level to 0
-    # -----------------------
-
-    # Create the application instance
-    main_app = MainWindow(queues["command"], queues["message"], queues["data"], queues["logging"])
-    qtbot.addWidget(main_app)
-    
-    # --- Yield to the test ---
-    yield main_app
-    
-    # --- Teardown ---
-    main_app.close()
-
 def test_initial_button_state(app):
     """Tests that control buttons are disabled on startup."""
     assert not app.acquire_button.isEnabled()
@@ -42,7 +15,6 @@ def test_initial_button_state(app):
 def test_connect_enables_buttons(app, queues, qtbot, mocker):
     """Tests if buttons become enabled after clicking 'connect'."""
     # Arrange:
-    # --- THIS IS THE FIX ---
     # Intercept the call to message_queue.get() and make it return True instantly.
     mocker.patch.object(queues["message"], 'get', return_value=True)
     

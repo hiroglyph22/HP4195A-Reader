@@ -41,25 +41,37 @@ def test_set_output_power(queues, mock_pyvisa):
     # assert queues["message"].get() is True
     pass # Placeholder until backend is refactored for testing
 
-def test_data_acquisition(queues, mock_pyvisa):
+def test_data_acquisition(queues, mock_pyvisa, mocker):
     """
     Tests if the 'start_acquisition' command correctly queries the instrument
     and puts the data on the queues.
     """
     # Arrange
     backend = hp4195a(queues["command"], queues["message"], queues["data"], queues["logging"])
-    backend.instrument = mock_pyvisa
     
+    # --- THIS IS THE FIX ---
+    # Manually create a mock logger, since run() is not called in a unit test.
+    backend.logger = mocker.MagicMock()
+    # -----------------------
+    
+    # Set up the mock instrument to be returned by the mocked pyvisa
+    backend.instrument = mock_pyvisa.ResourceManager.return_value.open_resource.return_value
+    
+    # Define the fake data the instrument will return
     fake_mag_data = "1.0,2.0,3.0"
     fake_phase_data = "90.0,85.0,80.0"
     fake_freq_data = "1000,2000,3000"
-    mock_pyvisa.query.side_effect = [fake_mag_data, fake_phase_data, fake_freq_data]
+    
+    # Configure the mock's query method to return the fake data in order
+    backend.instrument.query.side_effect = [fake_mag_data, fake_phase_data, fake_freq_data]
 
     # Act
-    queues["command"].put('start_acquisition')
-    # command = queues["command"].get()
-    # backend.handle_command(command)
+    # Call the command handler directly
+    backend.handle_command('start_acquisition')
 
     # Assert
-    # assert queues["message"].get() is True
-    pass # Placeholder
+    # Check that the success message and data were put on the correct queues
+    assert queues["message"].get() is True
+    assert np.array_equal(queues["data"].get(), np.array([1.0, 2.0, 3.0]))
+    assert np.array_equal(queues["data"].get(), np.array([90.0, 85.0, 80.0]))
+    assert np.array_equal(queues["data"].get(), np.array([1000, 2000, 3000]))

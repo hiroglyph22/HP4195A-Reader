@@ -25,7 +25,6 @@ class hp4195a(multiprocessing.Process):
         self.instrument = None
         self.rm = None # This is the pyvisa resource manager
 
-    # NEW helper method
     def handle_command(self, command):
         """Processes a single command from the queue."""
         self.logger.info('Received \"{}\" from GUI'.format(command))
