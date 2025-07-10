@@ -90,9 +90,6 @@ class hp4195a_interface(multiprocessing.Process):
             # Send a confirmation message back to the UI
             self.message_queue.put(True)
 
-        elif command == 'single_sweep':
-            self.single_sweep(20)
-
         elif command == 'set_center_frequency':
             center_freq_hz = self.command_queue.get()
             command_string = f"CENTER = {center_freq_hz} HZ"
@@ -108,11 +105,46 @@ class hp4195a_interface(multiprocessing.Process):
         elif command == 'low_res_sweep':
             self.logger.info('Starting low resolution sweep')
             self.send_command('RBW = 100 HZ')
-            self.single_sweep(45)
+            if self.single_sweep(45):
+                self.message_queue.put(True)
             self.send_command('RBW = 300 HZ')
 
         elif command == 'sweeping_range_of_amplitudes':
-            pass
+            params = self.command_queue.get()
+            start_amp = params["start"]
+            stop_amp = params["stop"]
+            step_amp = params["step"]
+            save_dir = params["dir"]
+
+            self.logger.info(f"Starting amplitude sweep from {start_amp} to {stop_amp} dBm.")
+
+            for amp in np.arange(start_amp, stop_amp + step_amp, step_amp):
+                self.logger.info(f"Setting amplitude to {amp} dBm.")
+                self.send_command(f"OSC1 = {amp} DBM")
+                
+                # The single_sweep function now returns a status instead of using the queue
+                if self.single_sweep(45):
+                    file_name = os.path.join(save_dir, f"amplitude_sweep_{amp}dBm.csv")
+                    self.logger.info(f"Saving data to {file_name}")
+                    try:
+                        with open(file_name, "w", newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerow(['Frequency', 'Magnitude', 'Phase'])
+                            rows = zip(self.freq_data, self.mag_data, self.phase_data)
+                            writer.writerows(rows)
+                        # Re-initialize data lists directly for the next iteration
+                        self.mag_data, self.phase_data, self.freq_data = [], [], []
+                    except IOError as e:
+                        self.logger.error(f"Could not write to file {file_name}: {e}")
+                        self.message_queue.put(False) # Send failure message
+                        return # Exit the function
+                else:
+                    self.logger.error(f"Data acquisition failed at amplitude {amp} dBm.")
+                    self.message_queue.put(False) # Send failure message
+                    return # Exit the function
+            
+            self.logger.info("Amplitude sweep finished successfully.")
+            self.message_queue.put(True)
 
 
     def run(self):
@@ -190,6 +222,21 @@ class hp4195a_interface(multiprocessing.Process):
             self.freq_data = freq_data
             return True
 
+    def acquire_all_data(self):
+        """Acquires mag, phase, and freq data and checks for validity."""
+        if self.acquire_mag_data() and self.acquire_phase_data() and self.acquire_freq_data():
+            if len(self.mag_data) == len(self.freq_data) and len(self.phase_data) == len(self.freq_data):
+                self.logger.info('Data length check passed.')
+                self.data_queue.put(self.mag_data)
+                self.data_queue.put(self.phase_data)
+                self.data_queue.put(self.freq_data)
+                return True
+            else:
+                self.logger.warning('Data length check failed.')
+                return False
+        self.logger.error('Failed to acquire all data types.')
+        return False
+
     def send_command(self, command):
         self.logger.info('Sent \"{}\"'.format(command))
         if self.instrument:
@@ -209,8 +256,7 @@ class hp4195a_interface(multiprocessing.Process):
     
     def single_sweep(self, sleepDuration):
         self.logger.info('Starting single sweep')
-        
-        # Trigger a single sweep
+
         self.send_command('SWM2')
         self.send_command('SWTRG')
 
@@ -218,19 +264,5 @@ class hp4195a_interface(multiprocessing.Process):
 
         self.logger.info('Sweep complete. Acquiring data.')
 
-        if self.acquire_mag_data():
-            if self.acquire_phase_data():
-                if self.acquire_freq_data():
-
-                    mag_check = len(self.mag_data) == len(self.freq_data)
-                    phase_check = len(self.phase_data) == len(self.freq_data)
-
-                    if mag_check and phase_check:
-                        self.logger.info('Data length check passed.')
-                        self.message_queue.put(True)
-                        self.data_queue.put(self.mag_data)
-                        self.data_queue.put(self.phase_data)
-                        self.data_queue.put(self.freq_data)
-                    else:
-                        self.logger.warning('Data length check failed.')
-                        self.message_queue.put(False)
+        # Returns True on success, False on failure
+        return self.acquire_all_data()

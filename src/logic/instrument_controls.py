@@ -100,7 +100,7 @@ class InstrumentControls:
                 self.logger.info("Sweeping Range of Amplitudes cancelled by user.")
                 return
                         
-            self.power_sweep_button.setEnabled(False)
+            self.sweeping_range_of_amplitudes_button.setEnabled(False)
 
             self.command_queue.put('sweeping_range_of_amplitudes')
             self.command_queue.put({
@@ -116,7 +116,7 @@ class InstrumentControls:
             else:
                 self.logger.error("Sweeping Range of Amplitudes failed or were interrupted in the backend.")
             
-            self.amplitude_range_sweeps_button.setEnabled(True)
+            self.sweeping_range_of_amplitudes_button.setEnabled(True)
 
         except ValueError:
             self.show_error_dialog("Invalid Input", "Please enter valid numbers for the Sweeping Range of Amplitudes parameters.")

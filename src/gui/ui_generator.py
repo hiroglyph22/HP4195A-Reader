@@ -142,7 +142,7 @@ class UIGenerator:
         layout.setColumnStretch(1, 1) # Make the input column stretchable
 
         layout.addWidget(QtWidgets.QLabel("Start Amplitude (dBm):"), 0, 0)
-        self.start_amplitude_input = QtWidgets.QLineEdit("-20")
+        self.start_amplitude_input = QtWidgets.QLineEdit("-10")
         layout.addWidget(self.start_amplitude_input, 0, 1)
 
         layout.addWidget(QtWidgets.QLabel("Stop Amplitude (dBm):"), 1, 0)
