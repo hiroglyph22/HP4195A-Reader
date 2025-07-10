@@ -9,7 +9,7 @@ from src.main_window import MainWindow
 def test_initial_button_state(app):
     """Tests that control buttons are disabled on startup."""
     assert not app.acquire_button.isEnabled()
-    assert not app.power_sweep_button.isEnabled()
+    assert not app.sweeping_range_of_amplitudes_button.isEnabled()
     assert not app.peak_scan_button.isEnabled()
 
 def test_connect_enables_buttons(app, queues, qtbot, mocker):
@@ -23,7 +23,7 @@ def test_connect_enables_buttons(app, queues, qtbot, mocker):
     
     # Assert: Check that the buttons are now enabled.
     assert app.acquire_button.isEnabled()
-    assert app.power_sweep_button.isEnabled()
+    assert app.sweeping_range_of_amplitudes_button.isEnabled()
     assert app.connect_button.text() == "Disconnect"
 
 # def test_power_sweep_sends_command(app, queues, qtbot, mocker):

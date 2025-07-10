@@ -51,17 +51,6 @@ class MainWindow(QtWidgets.QMainWindow,
 
         # Call all the UI generation methods from the UIGenerator mixin
         self.generate_UI()
-
-        # Set initial button states
-        self.acquire_button.setEnabled(False)
-        self.autofind_peak_button.setEnabled(False)
-        self.center_peak_button.setEnabled(False)
-        self.q_factor_button.setEnabled(False)
-        self.peak_scan_button.setEnabled(False)
-        self.low_res_sweep_button.setEnabled(False)
-        self.range_scan_button.setEnabled(False)
-        self.command_button.setEnabled(False)
-        self.power_sweep_button.setEnabled(False)
         
         self.show()
 

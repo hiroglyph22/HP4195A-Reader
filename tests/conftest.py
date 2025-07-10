@@ -6,7 +6,7 @@ import logging
 
 # Import the main window and backend process to be used in fixtures
 from src.main_window import MainWindow
-from src.hp4195a import hp4195a
+from src.hp4195a_interface import hp4195a_interface
 
 @pytest.fixture
 def queues():
@@ -26,7 +26,7 @@ def app(qtbot, queues, mocker):
     ensures the window is closed after each test.
     """
     # Mock all external dependencies and background processes
-    mocker.patch('src.hp4195a.hp4195a')
+    mocker.patch('src.hp4195a_interface.hp4195a_interface')
     mocker.patch('PyQt5.QtCore.QTimer')
     
     # Mock the QueueHandler and configure its instance to have a valid level
@@ -55,7 +55,7 @@ def managed_backend():
     data_queue = Queue()
     logging_queue = Queue()
     
-    backend_process = hp4195a(command_queue, message_queue, data_queue, logging_queue)
+    backend_process = hp4195a_interface(command_queue, message_queue, data_queue, logging_queue)
     backend_process.start()
 
     # Yield the queues to the test

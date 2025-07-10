@@ -67,8 +67,9 @@ python -m pytest
     - [ ]  Have graph overlay for amplitude frequency while the next amplitude curve is being swept
     - [ ]  Pop up another window when data for all range of amplitudes are selected
 - [x]  Put UI generating function calls in UI_generator
-- [ ]  Add initial test suite
+- [x]  Add initial test suite
     - [ ] Update test_set_output_power in tests
+- [ ]  Clean up hp4195a_interface.py
 
 ### License
 

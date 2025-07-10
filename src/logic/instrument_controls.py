@@ -11,7 +11,7 @@ class InstrumentControls:
                 self.peak_scan_button.setEnabled(False) 
                 self.low_res_sweep_button.setEnabled(False)
                 self.range_scan_button.setEnabled(False)
-                self.power_sweep_button.setEnabled(False)
+                self.sweeping_range_of_amplitudes_button.setEnabled(False)
         else:
             self.command_queue.put('connect')
             if self.message_queue.get():
@@ -21,7 +21,7 @@ class InstrumentControls:
                 self.peak_scan_button.setEnabled(True) 
                 self.low_res_sweep_button.setEnabled(True)
                 self.range_scan_button.setEnabled(True)
-                self.power_sweep_button.setEnabled(True)
+                self.sweeping_range_of_amplitudes_button.setEnabled(True)
                 self.timer.start()
 
     def start_acquisition(self):
@@ -82,29 +82,27 @@ class InstrumentControls:
         if self.message_queue.get():
             self.start_acquisition()
 
-    def start_power_sweep(self):
+    def start_sweeping_range_of_amplitudes(self):
         try:
-            start_p = float(self.start_power_input.text())
-            stop_p = float(self.stop_power_input.text())
-            step_p = float(self.step_power_input.text())
+            start_p = float(self.start_amplitude_input.text())
+            stop_p = float(self.stop_amplitude_input.text())
+            step_p = float(self.step_amplitude_input.text())
 
             if step_p <= 0:
-                self.show_error_dialog("Invalid Step", "Power step must be a positive number.")
+                self.show_error_dialog("Invalid Step", "Amplitude step must be a positive number.")
                 return
             if start_p > stop_p:
-                self.show_error_dialog("Invalid Range", "Start power cannot be greater than stop power.")
+                self.show_error_dialog("Invalid Range", "Start amplitude cannot be greater than stop amplitude.")
                 return
             
-            save_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory to Save Power Sweep Data")
+            save_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory to Save Sweeping Range of Amplitudes Data")
             if not save_dir:
-                self.logger.info("Power sweep cancelled by user.")
+                self.logger.info("Sweeping Range of Amplitudes cancelled by user.")
                 return
-            
-            self.logger.info(f"Starting power sweep from {start_p} to {stop_p} dBm, saving to {save_dir}")
-            
+                        
             self.power_sweep_button.setEnabled(False)
 
-            self.command_queue.put('start_power_sweep')
+            self.command_queue.put('sweeping_range_of_amplitudes')
             self.command_queue.put({
                 "start": start_p,
                 "stop": stop_p,
@@ -113,12 +111,12 @@ class InstrumentControls:
             })
             
             if self.message_queue.get():
-                self.logger.info("Power sweep completed successfully.")
-                QtWidgets.QMessageBox.information(self, "Sweep Complete", "Power sweep finished and all files have been saved.")
+                self.logger.info("Sweeping Range of Amplitudes completed successfully.")
+                QtWidgets.QMessageBox.information(self, "Sweeps Complete", "Sweeping Range of Amplitudes finished and all files have been saved.")
             else:
-                self.logger.error("Power sweep failed or was interrupted in the backend.")
+                self.logger.error("Sweeping Range of Amplitudes failed or were interrupted in the backend.")
             
-            self.power_sweep_button.setEnabled(True)
+            self.amplitude_range_sweeps_button.setEnabled(True)
 
         except ValueError:
-            self.show_error_dialog("Invalid Input", "Please enter valid numbers for power sweep parameters.")
+            self.show_error_dialog("Invalid Input", "Please enter valid numbers for the Sweeping Range of Amplitudes parameters.")

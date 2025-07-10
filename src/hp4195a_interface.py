@@ -8,9 +8,11 @@ import logging.handlers
 import pyvisa
 import csv
 
-class hp4195a(multiprocessing.Process):
+class hp4195a_interface(multiprocessing.Process):
+
+
     def __init__(self, command_queue, message_queue, data_queue, logger_queue):
-        super(hp4195a, self).__init__()
+        super(hp4195a_interface, self).__init__()
         self.command_queue = command_queue
         self.message_queue = message_queue
         self.data_queue = data_queue
@@ -25,16 +27,16 @@ class hp4195a(multiprocessing.Process):
         self.instrument = None
         self.rm = None # This is the pyvisa resource manager
 
+
+    """Processes a single command from the queue."""
     def handle_command(self, command):
-        """Processes a single command from the queue."""
+        
         self.logger.info('Received \"{}\" from GUI'.format(command))
 
         if command == 'connect':
-            self.logger.info('Connecting to HP4195A via VISA')
             self.visa_connect()
 
         elif command == 'disconnect':
-            self.logger.info('Disconnecting from HP4195A')
             self.visa_disconnect()
 
         elif command == 'start_acquisition':
@@ -108,6 +110,10 @@ class hp4195a(multiprocessing.Process):
             self.send_command('RBW = 100 HZ')
             self.single_sweep(45)
             self.send_command('RBW = 300 HZ')
+
+        elif command == 'sweeping_range_of_amplitudes':
+            pass
+
 
     def run(self):
         '''
