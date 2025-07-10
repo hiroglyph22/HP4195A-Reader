@@ -59,12 +59,22 @@ class MainWindow(QtWidgets.QMainWindow,
         # Create the plot
         self.graph = PlotCanvas(self, data_queue=self.data_queue, width=16, height=9)
         
-        # The UI generator will now return the main control panel widget
-        control_panel = self.generate_UI()
+        # The UI generator returns the main control panel widget
+        control_panel_widget = self.generate_UI()
 
-        # Add plot and control panel to the main layout
-        main_layout.addWidget(self.graph, 3) # Give plot a stretch factor of 3
-        main_layout.addWidget(control_panel, 1) # Give panel a stretch factor of 1
+        # --- SOLUTION ---
+        # 1. Create a QScrollArea to hold the control panel
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)  # Important: Allows the inner widget to resize
+        scroll_area.setWidget(control_panel_widget) # Place the generated panel inside the scroll area
+        
+        # 2. (Optional) Set a minimum width for the control panel area to prevent horizontal squishing
+        scroll_area.setMinimumWidth(400)
+
+        # Add the plot and the new scroll area (containing the panel) to the main layout
+        main_layout.addWidget(self.graph, 3)    # Give plot a stretch factor of 3
+        main_layout.addWidget(scroll_area, 1) # Give panel a stretch factor of 1
+        # --- END SOLUTION ---
         
         self.show()
 

@@ -14,6 +14,8 @@ class UIGenerator:
 
         # Main vertical layout for the entire control panel on the right
         control_panel_layout = QtWidgets.QVBoxLayout()
+        control_panel_layout.setSpacing(10)
+        control_panel_layout.setAlignment(QtCore.Qt.AlignTop) # Align widgets to the top
 
         # --- Top-level Action Buttons ---
         actions_group = QtWidgets.QGroupBox("Main Actions")
@@ -38,9 +40,11 @@ class UIGenerator:
         self.mag_cb.setChecked(True)
         self.phase_cb = QtWidgets.QCheckBox('Phase')
         self.phase_cb.setChecked(True)
+        plot_layout.addStretch()
         plot_layout.addWidget(self.p_cb)
         plot_layout.addWidget(self.mag_cb)
         plot_layout.addWidget(self.phase_cb)
+        plot_layout.addStretch()
         plot_group.setLayout(plot_layout)
         control_panel_layout.addWidget(plot_group)
 
@@ -57,32 +61,14 @@ class UIGenerator:
         control_panel_layout.addWidget(peak_group)
 
         # --- Frequency Sweep Controls ---
-        freq_group = QtWidgets.QGroupBox("Frequency Sweep")
-        freq_layout = QtWidgets.QFormLayout()
-        self.peak_freq_input = QtWidgets.QLineEdit()
-        self.span_input = QtWidgets.QLineEdit("10000")
-        self.peak_scan_button = QtWidgets.QPushButton("Scan around Peak")
-        self.start_freq_input = QtWidgets.QLineEdit()
-        self.stop_freq_input = QtWidgets.QLineEdit()
-        self.range_scan_button = QtWidgets.QPushButton("Scan Frequency Range")
-        self.low_res_sweep_button = QtWidgets.QPushButton("Full Low-Res Sweep")
-        freq_layout.addRow("Est. Peak Freq (Hz):", self.peak_freq_input)
-        freq_layout.addRow("Span (Hz):", self.span_input)
-        freq_layout.addRow(self.peak_scan_button)
-        freq_layout.addRow(QtWidgets.QLabel("--- OR ---"))
-        freq_layout.addRow("Start Freq (Hz):", self.start_freq_input)
-        freq_layout.addRow("Stop Freq (Hz):", self.stop_freq_input)
-        freq_layout.addRow(self.range_scan_button)
-        freq_layout.addRow(QtWidgets.QLabel("--- OR ---"))
-        freq_layout.addRow(self.low_res_sweep_button)
-        freq_group.setLayout(freq_layout)
+        freq_group = self.generate_frequency_sweep_section()
         control_panel_layout.addWidget(freq_group)
 
         # --- Amplitude Sweep Controls ---
-        amp_group = self.generate_sweeping_range_of_amplitudes_section()
+        amp_group = self.generate_amplitude_sweep_section()
         control_panel_layout.addWidget(amp_group)
         
-        control_panel_layout.addStretch(1) # Pushes everything up
+        control_panel_layout.addStretch(1) # Pushes everything else up
 
         # --- GPIB Command Section ---
         command_group = self.generate_command_section()
@@ -97,37 +83,110 @@ class UIGenerator:
         # Create the main widget to hold the layout
         control_panel_widget = QtWidgets.QWidget()
         control_panel_widget.setLayout(control_panel_layout)
+        control_panel_widget.setMinimumWidth(420) # Set a minimum width to prevent crushing
         return control_panel_widget
 
-    def generate_sweeping_range_of_amplitudes_section(self):
+    def generate_frequency_sweep_section(self):
+        group = QtWidgets.QGroupBox("Frequency Sweep")
+        # Use a grid layout for perfect column alignment
+        layout = QtWidgets.QGridLayout()
+        # THIS IS THE FIX: Make the second column (inputs) stretchable, 
+        # leaving the first column (labels) at its preferred size.
+        layout.setColumnStretch(1, 1)
+
+        # Row 0: Peak Freq
+        layout.addWidget(QtWidgets.QLabel("Est. Peak Freq (Hz):"), 0, 0)
+        self.peak_freq_input = QtWidgets.QLineEdit()
+        layout.addWidget(self.peak_freq_input, 0, 1)
+
+        # Row 1: Span
+        layout.addWidget(QtWidgets.QLabel("Span (Hz):"), 1, 0)
+        self.span_input = QtWidgets.QLineEdit("10000")
+        layout.addWidget(self.span_input, 1, 1)
+
+        # Row 2: Button
+        self.peak_scan_button = QtWidgets.QPushButton("Scan Around Peak")
+        layout.addWidget(self.peak_scan_button, 2, 0, 1, 2) # Span button across both columns
+
+        # Row 3: Separator
+        layout.addWidget(self.create_separator(), 3, 0, 1, 2)
+
+        # Row 4: Start Freq
+        layout.addWidget(QtWidgets.QLabel("Start Freq (Hz):"), 4, 0)
+        self.start_freq_input = QtWidgets.QLineEdit()
+        layout.addWidget(self.start_freq_input, 4, 1)
+
+        # Row 5: Stop Freq
+        layout.addWidget(QtWidgets.QLabel("Stop Freq (Hz):"), 5, 0)
+        self.stop_freq_input = QtWidgets.QLineEdit()
+        layout.addWidget(self.stop_freq_input, 5, 1)
+
+        # Row 6: Button
+        self.range_scan_button = QtWidgets.QPushButton("Scan Frequency Range")
+        layout.addWidget(self.range_scan_button, 6, 0, 1, 2)
+
+        # Row 7: Separator
+        layout.addWidget(self.create_separator(), 7, 0, 1, 2)
+
+        # Row 8: Button
+        self.low_res_sweep_button = QtWidgets.QPushButton("Full Low-Res Sweep")
+        layout.addWidget(self.low_res_sweep_button, 8, 0, 1, 2)
+
+        group.setLayout(layout)
+        return group
+
+    def generate_amplitude_sweep_section(self):
         group = QtWidgets.QGroupBox("Amplitude Sweep")
-        layout = QtWidgets.QFormLayout()
+        # Use a grid layout for stable columns
+        layout = QtWidgets.QGridLayout()
+        layout.setColumnStretch(1, 1) # Make the input column stretchable
+
+        layout.addWidget(QtWidgets.QLabel("Start Amplitude (dBm):"), 0, 0)
         self.start_amplitude_input = QtWidgets.QLineEdit("-20")
+        layout.addWidget(self.start_amplitude_input, 0, 1)
+
+        layout.addWidget(QtWidgets.QLabel("Stop Amplitude (dBm):"), 1, 0)
         self.stop_amplitude_input = QtWidgets.QLineEdit("0")
+        layout.addWidget(self.stop_amplitude_input, 1, 1)
+
+        layout.addWidget(QtWidgets.QLabel("Step (dBm):"), 2, 0)
         self.step_amplitude_input = QtWidgets.QLineEdit("1")
+        layout.addWidget(self.step_amplitude_input, 2, 1)
+        
         self.sweeping_range_of_amplitudes_button = QtWidgets.QPushButton("Start Amplitude Sweep")
-        layout.addRow("Start Amplitude (dBm):", self.start_amplitude_input)
-        layout.addRow("Stop Amplitude (dBm):", self.stop_amplitude_input)
-        layout.addRow("Step (dBm):", self.step_amplitude_input)
-        layout.addRow(self.sweeping_range_of_amplitudes_button)
+        layout.addWidget(self.sweeping_range_of_amplitudes_button, 3, 0, 1, 2)
+
         group.setLayout(layout)
         return group
 
     def generate_command_section(self):
         group = QtWidgets.QGroupBox("Direct GPIB Command")
-        layout = QtWidgets.QFormLayout()
+        # Use a grid layout for stable columns
+        layout = QtWidgets.QGridLayout()
+        layout.setColumnStretch(1, 1)
+
+        layout.addWidget(QtWidgets.QLabel("Command:"), 0, 0)
         self.command_box = QtWidgets.QLineEdit()
+        layout.addWidget(self.command_box, 0, 1)
+
+        self.command_button = QtWidgets.QPushButton("Send Command")
+        layout.addWidget(self.command_button, 1, 0, 1, 2)
+
+        layout.addWidget(QtWidgets.QLabel("Response:"), 2, 0)
         self.response_box = QtWidgets.QLineEdit()
         self.response_box.setReadOnly(True)
-        self.command_button = QtWidgets.QPushButton("Send Command")
-        layout.addRow("Command:", self.command_box)
-        layout.addRow(self.command_button)
-        layout.addRow("Response:", self.response_box)
+        layout.addWidget(self.response_box, 2, 1)
+        
         group.setLayout(layout)
         return group
+        
+    def create_separator(self):
+        line = QtWidgets.QFrame()
+        line.setFrameShape(QtWidgets.QFrame.HLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        return line
 
     def set_tooltips_and_connections(self):
-        # Connections
         self.connect_button.clicked.connect(self.connect)
         self.acquire_button.clicked.connect(self.start_acquisition)
         self.save_button.clicked.connect(self.save_file_dialog)
@@ -144,18 +203,6 @@ class UIGenerator:
         self.sweeping_range_of_amplitudes_button.clicked.connect(self.start_sweeping_range_of_amplitudes)
         self.command_box.textChanged.connect(self.toggle_connect_button)
         self.command_button.clicked.connect(self.send_command)
-        
-        # Tooltips
-        self.connect_button.setToolTip('Connect to a HP4195A Network Analyser')
-        self.acquire_button.setToolTip('Acquire a single trace from the instrument')
-        self.save_button.setToolTip('Save the current trace data to a CSV file')
-        self.pause_button.setToolTip('Pause or resume continuous data acquisition')
-        self.p_cb.setToolTip('Overlay new traces on top of old ones')
-        self.autofind_peak_button.setToolTip('Automatically find and mark the peak magnitude')
-        self.center_peak_button.setToolTip('Set the instrument\'s center frequency to the current peak')
-        self.q_factor_button.setToolTip('Fit a curve and calculate the Q-Factor from the peak')
-        self.sweeping_range_of_amplitudes_button.setToolTip('Sweep across a range of amplitude levels, saving data at each step.')
-        self.command_button.setToolTip('Send a raw GPIB command to the instrument')
 
     def set_initial_button_states(self):
         self.acquire_button.setEnabled(False)
@@ -170,20 +217,17 @@ class UIGenerator:
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
-        self.file_menu = self.main_menu.addMenu('File')
-        self.about_menu = self.main_menu.addMenu('About')
-        # Menu actions
-        save_action = QtWidgets.QAction('Save As...', self)
+        self.file_menu = self.main_menu.addMenu('&File')
+        self.about_menu = self.main_menu.addMenu('&About')
+        save_action = QtWidgets.QAction('&Save As...', self)
         save_action.setShortcut('Ctrl+S')
         save_action.triggered.connect(self.save_file_dialog)
         self.file_menu.addAction(save_action)
-        
-        exit_action = QtWidgets.QAction('Exit', self)
+        exit_action = QtWidgets.QAction('E&xit', self)
         exit_action.setShortcut('Ctrl+Q')
         exit_action.triggered.connect(self.close)
         self.file_menu.addAction(exit_action)
-
-        help_action = QtWidgets.QAction('Help', self)
+        help_action = QtWidgets.QAction('&Help', self)
         help_action.setShortcut('Ctrl+H')
         help_action.triggered.connect(self.help_dialog)
         self.about_menu.addAction(help_action)
