@@ -28,9 +28,7 @@ class MainWindow(QtWidgets.QMainWindow,
         self.data_queue = data_queue
         self.logging_queue = logging_queue
 
-        self.title = 'HP4195A'
-        self.width = 1920
-        self.height = 1120
+        self.title = 'HP4195A Network Analyser Interface'
         
         self.qh = logging.handlers.QueueHandler(self.logging_queue)
         self.root = logging.getLogger()
@@ -43,14 +41,30 @@ class MainWindow(QtWidgets.QMainWindow,
 
     def initUI(self):
         self.setWindowTitle(self.title)
-        self.setFixedSize(self.width, self.height)
-        self.setWindowIcon(QIcon('assets/icon.png'))
+        self.setMinimumSize(1280, 720) # Set a reasonable minimum size
+        self.resize(1920, 1080)
+        try:
+            # Assuming assets are inside src.
+            self.setWindowIcon(QIcon('src/assets/icon.png'))
+        except Exception as e:
+            self.logger.warning(f"Could not load window icon: {e}")
 
-        self.graph = PlotCanvas(self, data_queue=self.data_queue, width=17, height=8.5)
-        self.graph.move(0,20)
+        # Create a central widget and a main layout
+        central_widget = QtWidgets.QWidget(self)
+        self.setCentralWidget(central_widget)
+        main_layout = QtWidgets.QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10) # Add some margins
+        main_layout.setSpacing(10) # Add spacing between widgets
 
-        # Call all the UI generation methods from the UIGenerator mixin
-        self.generate_UI()
+        # Create the plot
+        self.graph = PlotCanvas(self, data_queue=self.data_queue, width=16, height=9)
+        
+        # The UI generator will now return the main control panel widget
+        control_panel = self.generate_UI()
+
+        # Add plot and control panel to the main layout
+        main_layout.addWidget(self.graph, 3) # Give plot a stretch factor of 3
+        main_layout.addWidget(control_panel, 1) # Give panel a stretch factor of 1
         
         self.show()
 
@@ -60,6 +74,8 @@ class MainWindow(QtWidgets.QMainWindow,
 
     def closeEvent(self, event):
         if self.connected:
+            # Simulate putting a 'True' on the queue for the disconnect to complete
+            self.message_queue.put(True)
             self.connect()
         self.logging_queue.put(None)
         event.accept()
