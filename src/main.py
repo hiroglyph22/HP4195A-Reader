@@ -5,6 +5,10 @@ import logging.config
 from PyQt5 import QtWidgets
 from multiprocessing import Queue, freeze_support
 
+# Add the src directory to the path when running directly
+if __name__ == '__main__' and __package__ is None:
+    sys.path.insert(0, os.path.dirname(__file__))
+
 import hp4195a_interface as hp
 import multi_logging as ml
 

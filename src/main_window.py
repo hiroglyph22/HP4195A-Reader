@@ -3,12 +3,22 @@ import logging.handlers
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QIcon
 
-from .gui.ui_generator import UIGenerator
-from .gui.plot_canvas import PlotCanvas
-from .logic.instrument_controls import InstrumentControls
-from .logic.plot_controls import PlotControls
-from .logic.file_handler import FileHandler
-from .logic.ui_logic import UiLogic
+try:
+    # Try relative imports first (for when running as a module/package)
+    from .gui.ui_generator import UIGenerator
+    from .gui.plot_canvas import PlotCanvas
+    from .logic.instrument_controls import InstrumentControls
+    from .logic.plot_controls import PlotControls
+    from .logic.file_handler import FileHandler
+    from .logic.ui_logic import UiLogic
+except ImportError:
+    # Fall back to absolute imports (for when running directly)
+    from gui.ui_generator import UIGenerator
+    from gui.plot_canvas import PlotCanvas
+    from logic.instrument_controls import InstrumentControls
+    from logic.plot_controls import PlotControls
+    from logic.file_handler import FileHandler
+    from logic.ui_logic import UiLogic
 
 class MainWindow(QtWidgets.QMainWindow, 
                  UIGenerator, 

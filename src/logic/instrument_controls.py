@@ -1,6 +1,12 @@
 from PyQt5 import QtWidgets, QtCore
-from ..gui.amplitude_sweep_viewer import AmplitudeSweepViewer
-from ..gui.final_sweep_viewer import FinalSweepViewer
+try:
+    # Try relative imports first (for when running as a module/package)
+    from ..gui.amplitude_sweep_viewer import AmplitudeSweepViewer
+    from ..gui.final_sweep_viewer import FinalSweepViewer
+except ImportError:
+    # Fall back to absolute imports (for when running directly)
+    from gui.amplitude_sweep_viewer import AmplitudeSweepViewer
+    from gui.final_sweep_viewer import FinalSweepViewer
 from threading import Thread
 from queue import Empty
 
