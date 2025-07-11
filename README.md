@@ -72,9 +72,19 @@ python -m pytest
 - [ ]  Update test_set_output_power in tests
 - [ ]  Add testing sweeping range of amplitudes
 - [ ]  Clean up hp4195a_interface.py
+- [ ]  Be more exact on the time of the sweeps
 - [ ]  Use ENUMS instead of strings for commands
 - [ ]  Change pause and resume button to start and pause (auto updating)
 - [ ]  Button for initial setup of the machines
+- [ ]  UI that displays all the important values for the machine
+- [ ]  Export all the values of the machine (like span, center, etc.)
+- [ ]  Q-factor for standalone program
+- [ ]  Best-fit lines that remove noise
+- [ ]. Option to not have multiple windows for sweeping range of amplitudes
+- [ ]  Option on final overlay graph and standalone graphing program to modify frequencies and magnitudes, and then export that data in csv
+- [ ]. Automatically create new folder at specified path
+- [ ]. Something that tells you that sweeping is in progress
+- [ ]  More modern UI
 
 ### License
 
