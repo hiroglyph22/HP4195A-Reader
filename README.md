@@ -73,6 +73,8 @@ python -m pytest
 - [ ]  Add testing sweeping range of amplitudes
 - [ ]  Clean up hp4195a_interface.py
 - [ ]  Use ENUMS instead of strings for commands
+- [ ]  Change pause and resume button to start and pause (auto updating)
+- [ ]  Button for initial setup of the machines
 
 ### License
 
