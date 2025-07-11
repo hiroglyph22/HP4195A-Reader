@@ -64,8 +64,9 @@ python -m pytest
 - [ ]  Overlapping graph
     - [x]  Get user input for range of frequencies
     - [x]  Change amplitude and do a sweep per certain amplitude
-    - [ ]  Pop up another window when data for all range of amplitudes are selected
-    - [ ]  Have a final window with all the data overlayed
+    - [x]  Pop up another window for every amplitude
+    - [x]  Have a final window with all the data overlayed
+    - [ ]  Select which amplitudes to show on final window
 - [x]  Put UI generating function calls in UI_generator
 - [x]  Add initial test suite
     - [ ] Update test_set_output_power in tests
