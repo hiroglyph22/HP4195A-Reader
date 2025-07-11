@@ -27,7 +27,15 @@ The following documents provide useful information regarding the 4195A Network/S
 
 ### Installing
 
-To run the program install the dependencies as specified above using pip, conda or a similar package management system. Then clone this repository, navigate to the project directory in a command terminal and type
+To run the program install the dependencies listed in requirements.txt using pip, conda or a similar package management system
+
+For example, for pip:
+
+```
+pip install -r requirements.txt
+```
+
+Then clone this repository, navigate to the project directory in a command terminal and type
 
 ```
 python src/main.py

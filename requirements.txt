@@ -1,0 +1,9 @@
+PyQt5
+PyQtWebEngine
+PyVISA
+NumPy
+Matplotlib
+Markdown
+cx_Freeze
+Scipy
+Pytest
