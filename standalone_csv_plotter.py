@@ -84,7 +84,17 @@ class PlotCanvas(FigureCanvas):
         
         # Then, plot each sweep
         for freq_data, mag_data, label in all_sweeps:
-            self.mag_ax.plot(freq_data, mag_data, linewidth=1.5, label=label)
+            # Find peak frequency for this sweep
+            if len(mag_data) > 0:
+                peak_idx = np.argmax(mag_data)
+                peak_freq = freq_data[peak_idx]
+                peak_mag = mag_data[peak_idx]
+                # Include peak frequency in the label
+                enhanced_label = f"{label} (Peak: {peak_freq/1e3:.2f} kHz)"
+            else:
+                enhanced_label = label
+            
+            self.mag_ax.plot(freq_data, mag_data, linewidth=1.5, label=enhanced_label)
         
         # Finally, set the axis limits with a 5% padding
         if min_mag != float('inf') and max_mag != float('-inf'):
