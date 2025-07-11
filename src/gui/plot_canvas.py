@@ -83,7 +83,7 @@ class PlotCanvas(FigureCanvas):
         self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
         
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
-        self.fig.tight_layout()
+        self.fig.tight_layout(rect=[0, 0.03, 1, 1])
 
     def plot(self):
         if not self.persist:
@@ -134,7 +134,7 @@ class PlotCanvas(FigureCanvas):
         if self.phase:
              self.phase_ax.legend(loc='lower right')
 
-        self.fig.tight_layout()
+        self.fig.tight_layout(rect=[0, 0.03, 1, 1])
         self.draw()
 
     def update_sweep_plot(self, freq_data, mag_data):
@@ -151,7 +151,7 @@ class PlotCanvas(FigureCanvas):
         if freq_data is not None and len(freq_data) > 1:
             self.mag_ax.set_xlim(np.min(freq_data), np.max(freq_data))
 
-        self.fig.tight_layout()
+        self.fig.tight_layout(rect=[0, 0.03, 1, 1])
         self.draw()
 
     def update_overlaid_plot(self, all_sweeps):
@@ -189,5 +189,5 @@ class PlotCanvas(FigureCanvas):
             self.mag_ax.set_xlim(min_freq - freq_padding, max_freq + freq_padding)
 
         self.mag_ax.legend()
-        self.fig.tight_layout()
+        self.fig.tight_layout(rect=[0, 0.03, 1, 1])
         self.draw()
