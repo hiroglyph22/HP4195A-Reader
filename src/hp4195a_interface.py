@@ -115,8 +115,15 @@ class hp4195a_interface(multiprocessing.Process):
             stop_amp = params["stop"]
             step_amp = params["step"]
             save_dir = params["dir"]
+            resolution = params["resolution"]
 
-            self.logger.info(f"Starting amplitude sweep from {start_amp} to {stop_amp} dBm.")
+            if resolution == 10:
+                sleep_duration = 222
+            else: # Default to 100 Hz
+                sleep_duration = 41
+
+            self.logger.info(f"Starting amplitude sweep from {start_amp} to {stop_amp} dBm with {resolution} Hz resolution.")
+            self.send_command(f"RBW = {resolution} HZ")
 
             for amp in np.arange(start_amp, stop_amp + step_amp, step_amp):
                 self.logger.info(f"Setting amplitude to {amp} dBm.")
@@ -125,18 +132,18 @@ class hp4195a_interface(multiprocessing.Process):
                 # Perform a single sweep and acquire data manually
                 self.send_command('SWM2')
                 self.send_command('SWTRG')
-                time.sleep(45)
+                time.sleep(sleep_duration)
 
                 mag_ok = self.acquire_mag_data()
                 phase_ok = self.acquire_phase_data()
                 freq_ok = self.acquire_freq_data()
 
                 if mag_ok and phase_ok and freq_ok:
-                    # Send FREQUENCY then MAGNITUDE to the GUI queue
+                    # Send frequency, magnitude, AND amplitude to the GUI queue
                     self.data_queue.put(self.freq_data)
                     self.data_queue.put(self.mag_data)
+                    self.data_queue.put(amp)
 
-                    # Save all data to the CSV file
                     file_name = os.path.join(save_dir, f"amplitude_sweep_{amp}dBm.csv")
                     self.logger.info(f"Saving data to {file_name}")
                     try:
@@ -145,7 +152,6 @@ class hp4195a_interface(multiprocessing.Process):
                             writer.writerow(['Frequency', 'Magnitude', 'Phase'])
                             rows = zip(self.freq_data, self.mag_data, self.phase_data)
                             writer.writerows(rows)
-                        # Clear data for the next loop
                         self.mag_data, self.phase_data, self.freq_data = [], [], []
                     except IOError as e:
                         self.logger.error(f"Could not write to file {file_name}: {e}")
@@ -182,15 +188,9 @@ class hp4195a_interface(multiprocessing.Process):
         try:
             self.rm = pyvisa.ResourceManager()
             self.instrument = self.rm.open_resource(self.visa_resource_name)
-            # Set a timeout (in milliseconds)
             self.instrument.timeout = 5000 
 
-            # Check instrument ID
-            # Query the instrument for its full identity string
             identity_full = self.instrument.query('ID?')
-            
-            # The instrument response can be verbose, so we split it into lines
-            # and take only the first line for a clean ID.
             identity_clean = identity_full.splitlines()[0]
             
             self.logger.info(f"Connected to: {identity_clean}")

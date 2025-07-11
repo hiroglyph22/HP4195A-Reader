@@ -1,15 +1,48 @@
 from PyQt5 import QtWidgets, QtCore
 from gui.amplitude_sweep_viewer import AmplitudeSweepViewer
+from gui.final_sweep_viewer import FinalSweepViewer
 from threading import Thread
 from queue import Empty
 
 class SweepCommunicator(QtCore.QObject):
-    sweep_data_ready = QtCore.pyqtSignal(object, object)
-    show_viewer = QtCore.pyqtSignal()
-    show_final_plot = QtCore.pyqtSignal()
+    """
+    Manages thread-safe communication between the sweep worker thread
+    and the main GUI thread using signals.
+    """
+    # Signal for creating a new window for a single sweep
+    new_sweep_window_ready = QtCore.pyqtSignal(object, object, float) # freq, mag, amp
+    # Signal for creating the final, overlaid plot window
+    final_plot_ready = QtCore.pyqtSignal(list)
+    # Signal to re-enable the sweep button when finished
     enable_button = QtCore.pyqtSignal(bool)
 
 class InstrumentControls:
+    # This method is a slot that runs on the GUI thread
+    @QtCore.pyqtSlot(object, object, float)
+    def create_new_sweep_window(self, freq_data, mag_data, amp):
+        """Creates and shows a new, persistent window for a single sweep."""
+        if not hasattr(self, 'sweep_viewers'):
+            self.sweep_viewers = []
+        
+        viewer = AmplitudeSweepViewer(parent=self)
+        viewer.update_plot(freq_data, mag_data, amp)
+        viewer.show()
+        # Keep a reference to the window so it's not garbage collected
+        self.sweep_viewers.append(viewer)
+
+    # This method is a slot that runs on the GUI thread
+    @QtCore.pyqtSlot(list)
+    def create_final_sweep_window(self, all_sweeps_data):
+        """Creates and shows the final window with all sweeps overlaid."""
+        if not hasattr(self, 'sweep_viewers'):
+            self.sweep_viewers = []
+
+        final_viewer = FinalSweepViewer(parent=self)
+        final_viewer.update_plot(all_sweeps_data)
+        final_viewer.show()
+        # Keep a reference to the window
+        self.sweep_viewers.append(final_viewer)
+
     def connect(self):
         if self.connected:
             self.command_queue.put('disconnect')
@@ -96,6 +129,7 @@ class InstrumentControls:
             start_p = float(self.start_amplitude_input.text())
             stop_p = float(self.stop_amplitude_input.text())
             step_p = float(self.step_amplitude_input.text())
+            resolution = int(self.resolution_combo.currentText())
 
             if step_p <= 0:
                 self.show_error_dialog("Invalid Step", "Amplitude step must be a positive number.")
@@ -108,17 +142,23 @@ class InstrumentControls:
             if not save_dir:
                 self.logger.info("Sweeping Range of Amplitudes cancelled by user.")
                 return
+            
+            # Clear any old sweep windows before starting a new run
+            if hasattr(self, 'sweep_viewers'):
+                for viewer in self.sweep_viewers:
+                    viewer.close()
+                self.sweep_viewers.clear()
+            else:
+                self.sweep_viewers = []
                         
             self.sweeping_range_of_amplitudes_button.setEnabled(False)
             
-            sweep_viewer = AmplitudeSweepViewer(self, data_queue=self.data_queue)
             communicator = SweepCommunicator()
 
-            communicator.sweep_data_ready.connect(sweep_viewer.update_sweep)
-            communicator.show_viewer.connect(sweep_viewer.show)
-            communicator.show_final_plot.connect(sweep_viewer.show_final_plot)
+            # Connect signals to the new slots, which will run on the GUI thread
+            communicator.new_sweep_window_ready.connect(self.create_new_sweep_window)
+            communicator.final_plot_ready.connect(self.create_final_sweep_window)
             communicator.enable_button.connect(self.sweeping_range_of_amplitudes_button.setEnabled)
-
 
             def sweep_thread_func():
                 self.command_queue.put('sweeping_range_of_amplitudes')
@@ -126,17 +166,22 @@ class InstrumentControls:
                     "start": start_p,
                     "stop": stop_p,
                     "step": step_p,
-                    "dir": save_dir
+                    "dir": save_dir,
+                    "resolution": resolution
                 })
                 
+                all_sweeps_data = []
                 num_sweeps = int((stop_p - start_p) / step_p) + 1
                 for i in range(num_sweeps):
                     try:
-                        freq_data = self.data_queue.get(timeout=60)
+                        # Get all three data points from the backend
+                        freq_data = self.data_queue.get(timeout=300)
                         mag_data = self.data_queue.get(timeout=10)
-                        communicator.sweep_data_ready.emit(freq_data, mag_data)
-                        if i == 0:
-                            communicator.show_viewer.emit()
+                        amp = self.data_queue.get(timeout=10)
+
+                        all_sweeps_data.append((freq_data, mag_data, amp))
+                        # Emit signal to create a new window for this sweep
+                        communicator.new_sweep_window_ready.emit(freq_data, mag_data, amp)
 
                     except Empty:
                         self.logger.error("Timeout waiting for sweep data from backend.")
@@ -144,7 +189,9 @@ class InstrumentControls:
 
                 if self.message_queue.get():
                     self.logger.info("Sweeping Range of Amplitudes completed successfully.")
-                    communicator.show_final_plot.emit()
+                    # Emit signal to create the final plot if data was collected
+                    if all_sweeps_data:
+                        communicator.final_plot_ready.emit(all_sweeps_data)
                 else:
                     self.logger.error("Sweeping Range of Amplitudes failed or were interrupted in the backend.")
                 

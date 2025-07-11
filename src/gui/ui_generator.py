@@ -137,10 +137,10 @@ class UIGenerator:
 
     def generate_amplitude_sweep_section(self):
         group = QtWidgets.QGroupBox("Amplitude Sweep")
-        # Use a grid layout for stable columns
         layout = QtWidgets.QGridLayout()
-        layout.setColumnStretch(1, 1) # Make the input column stretchable
+        layout.setColumnStretch(1, 1)
 
+        # Start and Stop Amplitude
         layout.addWidget(QtWidgets.QLabel("Start Amplitude (dBm):"), 0, 0)
         self.start_amplitude_input = QtWidgets.QLineEdit("-10")
         layout.addWidget(self.start_amplitude_input, 0, 1)
@@ -149,12 +149,19 @@ class UIGenerator:
         self.stop_amplitude_input = QtWidgets.QLineEdit("0")
         layout.addWidget(self.stop_amplitude_input, 1, 1)
 
+        # Step and Resolution
         layout.addWidget(QtWidgets.QLabel("Step (dBm):"), 2, 0)
         self.step_amplitude_input = QtWidgets.QLineEdit("1")
         layout.addWidget(self.step_amplitude_input, 2, 1)
         
+        layout.addWidget(QtWidgets.QLabel("Resolution (Hz):"), 3, 0)
+        self.resolution_combo = QtWidgets.QComboBox()
+        self.resolution_combo.addItems(["100", "10"])
+        layout.addWidget(self.resolution_combo, 3, 1)
+
+        # Sweep Button
         self.sweeping_range_of_amplitudes_button = QtWidgets.QPushButton("Start Amplitude Sweep")
-        layout.addWidget(self.sweeping_range_of_amplitudes_button, 3, 0, 1, 2)
+        layout.addWidget(self.sweeping_range_of_amplitudes_button, 4, 0, 1, 2)
 
         group.setLayout(layout)
         return group

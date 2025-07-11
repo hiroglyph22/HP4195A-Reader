@@ -64,7 +64,7 @@ class PlotCanvas(FigureCanvas):
         self.fit_data = None
 
     def apply_styles(self):
-        self.mag_ax.set_xlabel('Frequency (Hz)', color='white')
+        self.mag_ax.set_xlabel('Frequency (KHz)', color='white')
         self.mag_ax.set_ylabel('Magnitude (dBm)', color='yellow')
         self.phase_ax.set_ylabel('Phase (deg)', color='cyan')
         self.phase_ax.yaxis.set_label_position('right')
@@ -78,8 +78,8 @@ class PlotCanvas(FigureCanvas):
         self.phase_ax.spines['right'].set_edgecolor('cyan')
         self.mag_ax.spines['left'].set_edgecolor('yellow')
 
-        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.0f} KHz'))
-        self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} dBm'))
+        self.mag_ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f'{x/1e3:.2f}'))
+        self.mag_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f}'))
         self.phase_ax.yaxis.set_major_formatter(FuncFormatter(lambda y, pos: f'{y:.0f} °'))
         
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
@@ -164,8 +164,8 @@ class PlotCanvas(FigureCanvas):
         min_mag, max_mag = float('inf'), float('-inf')
         min_freq, max_freq = float('inf'), float('-inf')
 
-        for i, (freq_data, mag_data) in enumerate(all_sweeps):
-            self.mag_ax.plot(freq_data, mag_data, linewidth=1.5, label=f'Sweep {i+1}')
+        # First, find the overall min/max across all sweeps
+        for freq_data, mag_data, amp in all_sweeps:
             if len(mag_data) > 0:
                 min_mag = min(min_mag, np.min(mag_data))
                 max_mag = max(max_mag, np.max(mag_data))
@@ -173,10 +173,20 @@ class PlotCanvas(FigureCanvas):
                 min_freq = min(min_freq, np.min(freq_data))
                 max_freq = max(max_freq, np.max(freq_data))
         
-        if min_mag != float('inf'):
-            self.mag_ax.set_ylim(min_mag - 5, max_mag + 5)
-        if min_freq != float('inf'):
-            self.mag_ax.set_xlim(min_freq, max_freq)
+        # Then, plot each sweep, using the amplitude for the label
+        for freq_data, mag_data, amp in all_sweeps:
+            self.mag_ax.plot(freq_data, mag_data, linewidth=1.5, label=f'{amp:.2f} dBm')
+        
+        # Finally, set the axis limits with a 5% padding
+        if min_mag != float('inf') and max_mag != float('-inf'):
+            mag_range = max_mag - min_mag
+            mag_padding = mag_range * 0.05
+            self.mag_ax.set_ylim(min_mag - mag_padding, max_mag + mag_padding)
+
+        if min_freq != float('inf') and max_freq != float('-inf'):
+            freq_range = max_freq - min_freq
+            freq_padding = freq_range * 0.05
+            self.mag_ax.set_xlim(min_freq - freq_padding, max_freq + freq_padding)
 
         self.mag_ax.legend()
         self.fig.tight_layout()
