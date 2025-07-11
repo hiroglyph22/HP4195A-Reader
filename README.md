@@ -66,10 +66,11 @@ python -m pytest
     - [x]  Change amplitude and do a sweep per certain amplitude
     - [x]  Pop up another window for every amplitude
     - [x]  Have a final window with all the data overlayed
-    - [ ]  Select which amplitudes to show on final window
+    - [x]  Select which amplitudes to show on final window
 - [x]  Put UI generating function calls in UI_generator
 - [x]  Add initial test suite
-    - [ ] Update test_set_output_power in tests
+- [ ]  Update test_set_output_power in tests
+- [ ]  Add testing sweeping range of amplitudes
 - [ ]  Clean up hp4195a_interface.py
 - [ ]  Use ENUMS instead of strings for commands
 

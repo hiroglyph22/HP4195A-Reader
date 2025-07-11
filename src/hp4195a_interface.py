@@ -125,7 +125,10 @@ class hp4195a_interface(multiprocessing.Process):
             self.logger.info(f"Starting amplitude sweep from {start_amp} to {stop_amp} dBm with {resolution} Hz resolution.")
             self.send_command(f"RBW = {resolution} HZ")
 
-            for amp in np.arange(start_amp, stop_amp + step_amp, step_amp):
+            # The stop value for np.arange is exclusive. By adding a very small
+            # number (epsilon), we make the 'stop_amp' value inclusive without
+            # overshooting it on the next step.
+            for amp in np.arange(start_amp, stop_amp + 1e-9, step_amp):
                 self.logger.info(f"Setting amplitude to {amp} dBm.")
                 self.send_command(f"OSC1 = {amp} DBM")
                 
