@@ -1,5 +1,10 @@
 from PyQt5 import QtWidgets
-from ..gui.help_window import Help_Window
+try:
+    # Try relative imports first (for when running as a module/package)
+    from ..gui.help_window import Help_Window
+except ImportError:
+    # Fall back to absolute imports (for when running directly)
+    from gui.help_window import Help_Window
 
 class UiLogic:
     def toggle_connect_button(self):
