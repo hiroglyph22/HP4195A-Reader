@@ -60,6 +60,10 @@ class InstrumentControls:
                 self.low_res_sweep_button.setEnabled(False)
                 self.range_scan_button.setEnabled(False)
                 self.sweeping_range_of_amplitudes_button.setEnabled(False)
+                self.pause_button.setEnabled(False)
+                self.timer.stop()
+                self.pause_button.setText('Start Auto-Update')
+                self.pause_button.setChecked(False)
         else:
             self.command_queue.put('connect')
             if self.message_queue.get():
@@ -70,7 +74,7 @@ class InstrumentControls:
                 self.low_res_sweep_button.setEnabled(True)
                 self.range_scan_button.setEnabled(True)
                 self.sweeping_range_of_amplitudes_button.setEnabled(True)
-                self.timer.start()
+                self.pause_button.setEnabled(True)
 
     def start_acquisition(self):
         if self.connected:

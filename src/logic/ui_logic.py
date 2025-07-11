@@ -14,13 +14,13 @@ class UiLogic:
         help_window = Help_Window()
         help_window.exec_()
 
-    def toggle_pause(self, paused):
-        if paused:
-            self.timer.stop()
-            self.pause_button.setText('Resume')
-        else:
+    def toggle_pause(self, started):
+        if started:
             self.timer.start()
-            self.pause_button.setText('Pause')
+            self.pause_button.setText('Pause Auto-Update')
+        else:
+            self.timer.stop()
+            self.pause_button.setText('Start Auto-Update')
             
     def show_error_dialog(self, title, text):
         error_dialog = QtWidgets.QMessageBox()

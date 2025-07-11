@@ -81,7 +81,7 @@ python -m pytest
 - [ ]  Clean up hp4195a_interface.py
 - [x]  Be more exact on the time of the sweeps
 - [ ]  Use ENUMS instead of strings for commands
-- [ ]  Change pause and resume button to start and pause (auto updating)
+- [x]  Change pause and resume button to start and pause (auto updating)
 - [ ]  Button for initial setup of the machines
 - [ ]  UI that displays all the important values for the machine
 - [ ]  Export all the values of the machine (like span, center, etc.)

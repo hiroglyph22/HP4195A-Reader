@@ -23,7 +23,7 @@ class UIGenerator:
         self.connect_button = QtWidgets.QPushButton('Connect')
         self.acquire_button = QtWidgets.QPushButton('Acquire Data')
         self.save_button = QtWidgets.QPushButton('Save Data')
-        self.pause_button = QtWidgets.QPushButton('Pause')
+        self.pause_button = QtWidgets.QPushButton('Start Auto-Update')
         self.pause_button.setCheckable(True)
         actions_layout.addWidget(self.connect_button, 0, 0)
         actions_layout.addWidget(self.acquire_button, 0, 1)
@@ -221,6 +221,7 @@ class UIGenerator:
         self.range_scan_button.setEnabled(False)
         self.command_button.setEnabled(False)
         self.sweeping_range_of_amplitudes_button.setEnabled(False)
+        self.pause_button.setEnabled(False)
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
