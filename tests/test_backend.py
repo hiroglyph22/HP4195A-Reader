@@ -3,7 +3,7 @@ import numpy as np
 from unittest.mock import MagicMock
 
 # Import the class to be tested
-from src.hp4195a_interface import hp4195a_interface
+from src.hp4195a_interface import HP4195AInterface
 
 @pytest.fixture
 def mock_pyvisa(mocker):
@@ -22,7 +22,7 @@ def test_set_output_power(queues, mock_pyvisa):
     Tests if the 'set_output_power' command sends the correct GPIB string.
     """
     # Arrange
-    backend = hp4195a_interface(queues["command"], queues["message"], queues["data"], queues["logging"])
+    backend = HP4195AInterface(queues["command"], queues["message"], queues["data"], queues["logging"])
     backend.instrument = mock_pyvisa
     
     # Act
@@ -45,7 +45,7 @@ def test_data_acquisition(queues, mock_pyvisa, mocker):
     and puts the data on the queues.
     """
     # Arrange
-    backend = hp4195a_interface(queues["command"], queues["message"], queues["data"], queues["logging"])
+    backend = HP4195AInterface(queues["command"], queues["message"], queues["data"], queues["logging"])
     
     # --- THIS IS THE FIX ---
     # Manually create a mock logger, since run() is not called in a unit test.

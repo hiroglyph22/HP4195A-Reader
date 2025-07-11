@@ -3,10 +3,12 @@ try:
     # Try relative imports first (for when running as a module/package)
     from ..gui.amplitude_sweep_viewer import AmplitudeSweepViewer
     from ..gui.final_sweep_viewer import FinalSweepViewer
+    from ..constants import Commands
 except ImportError:
     # Fall back to absolute imports (for when running directly)
     from gui.amplitude_sweep_viewer import AmplitudeSweepViewer
     from gui.final_sweep_viewer import FinalSweepViewer
+    from constants import Commands
 from threading import Thread
 from queue import Empty
 
@@ -51,7 +53,7 @@ class InstrumentControls:
 
     def connect(self):
         if self.connected:
-            self.command_queue.put('disconnect')
+            self.command_queue.put(Commands.DISCONNECT.value)
             if self.message_queue.get():
                 self.connected = False
                 self.connect_button.setText("Connect")
@@ -65,7 +67,7 @@ class InstrumentControls:
                 self.pause_button.setText('Start Auto-Update')
                 self.pause_button.setChecked(False)
         else:
-            self.command_queue.put('connect')
+            self.command_queue.put(Commands.CONNECT.value)
             if self.message_queue.get():
                 self.connected = True
                 self.connect_button.setText("Disconnect")
@@ -78,7 +80,7 @@ class InstrumentControls:
 
     def start_acquisition(self):
         if self.connected:
-            self.command_queue.put('start_acquisition')
+            self.command_queue.put(Commands.START_ACQUISITION.value)
             if self.message_queue.get():
                 self.autofind_peak_button.setEnabled(True)
                 self.center_peak_button.setEnabled(False)
@@ -90,7 +92,7 @@ class InstrumentControls:
 
     def send_command(self):
         command = self.command_box.text()
-        self.command_queue.put('send_command')
+        self.command_queue.put(Commands.SEND_COMMAND.value)
         self.command_queue.put(command)
         response = self.data_queue.get()
         self.response_box.setText(f'{command}: {response}')
@@ -98,7 +100,7 @@ class InstrumentControls:
 
     def center_on_peak(self):
         if self.graph.peak_freq is not None:
-            self.command_queue.put('set_center_frequency')
+            self.command_queue.put(Commands.SET_CENTER_FREQUENCY.value)
             self.command_queue.put(self.graph.peak_freq)
             self.start_acquisition()
 
@@ -106,7 +108,7 @@ class InstrumentControls:
         try:
             center_freq = float(self.peak_freq_input.text())
             span_freq = float(self.span_input.text())
-            self.command_queue.put('set_center_and_span')
+            self.command_queue.put(Commands.SET_CENTER_AND_SPAN.value)
             self.command_queue.put(center_freq)
             self.command_queue.put(span_freq)
             if self.message_queue.get():
@@ -121,7 +123,7 @@ class InstrumentControls:
             if start_freq >= stop_freq:
                 self.show_error_dialog("Invalid Range", "Start frequency must be less than stop frequency.")
                 return
-            self.command_queue.put('set_start_stop')
+            self.command_queue.put(Commands.SET_START_STOP.value)
             self.command_queue.put(start_freq)
             self.command_queue.put(stop_freq)
             if self.message_queue.get():
@@ -130,7 +132,7 @@ class InstrumentControls:
             self.show_error_dialog("Invalid Input", "Please enter valid numbers for start and stop frequencies.")
 
     def start_low_res_sweep(self):
-        self.command_queue.put('low_res_sweep')
+        self.command_queue.put(Commands.LOW_RES_SWEEP.value)
         if self.message_queue.get():
             self.start_acquisition()
 
@@ -171,7 +173,7 @@ class InstrumentControls:
             communicator.enable_button.connect(self.sweeping_range_of_amplitudes_button.setEnabled)
 
             def sweep_thread_func():
-                self.command_queue.put('sweeping_range_of_amplitudes')
+                self.command_queue.put(Commands.SWEEPING_RANGE_OF_AMPLITUDES.value)
                 self.command_queue.put({
                     "start": start_p,
                     "stop": stop_p,

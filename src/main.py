@@ -9,7 +9,7 @@ from multiprocessing import Queue, freeze_support
 if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, os.path.dirname(__file__))
 
-import hp4195a_interface as hp
+import hp4195a_interface as hp4195a
 import multi_logging as ml
 
 from main_window import MainWindow
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     data_queue = Queue()
     logging_queue = Queue()
 
-    dp = hp.hp4195a_interface(command_queue, message_queue, data_queue, logging_queue)
+    dp = hp4195a.HP4195AInterface(command_queue, message_queue, data_queue, logging_queue)
     dp.daemon = True
     dp.start()
 
