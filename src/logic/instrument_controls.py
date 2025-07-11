@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
-from gui.amplitude_sweep_viewer import AmplitudeSweepViewer
-from gui.final_sweep_viewer import FinalSweepViewer
+from ..gui.amplitude_sweep_viewer import AmplitudeSweepViewer
+from ..gui.final_sweep_viewer import FinalSweepViewer
 from threading import Thread
 from queue import Empty
 

@@ -7,3 +7,5 @@ Markdown
 cx_Freeze
 Scipy
 Pytest
+pytest-mock
+pytest-qt
