@@ -78,9 +78,9 @@ python -m pytest
 - [x]  Put UI generating function calls in UI_generator
 - [x]  Add initial test suite
 - [x]  Add testing sweeping range of amplitudes
-- [ ]  Clean up hp4195a_interface.py
+- [x]  Clean up hp4195a_interface.py
 - [x]  Be more exact on the time of the sweeps
-- [ ]  Use ENUMS instead of strings for commands
+- [x]  Use ENUMS instead of strings for commands
 - [x]  Change pause and resume button to start and pause (auto updating)
 - [ ]  Button for initial setup of the machines
 - [ ]  UI that displays all the important values for the machine
