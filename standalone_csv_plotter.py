@@ -221,6 +221,20 @@ class CsvPlotterWindow(QtWidgets.QMainWindow):
             if i in selected_indices:
                 plot_data.append((data["freq"], data["mag"], data["label"]))
         
+        # Sort plot_data by amplitude (extracted from label) for consistent legend ordering
+        def extract_amplitude(label):
+            """Extract the numerical amplitude value from a label like '-10.0 dBm'"""
+            try:
+                # Find the number before 'dBm' in the label
+                import re
+                match = re.search(r'(-?\d+\.?\d*)\s*dBm', label)
+                return float(match.group(1)) if match else float('inf')
+            except:
+                return float('inf')
+        
+        # Sort by amplitude in descending order
+        plot_data.sort(key=lambda x: extract_amplitude(x[2]), reverse=True)
+        
         self.plot_canvas.update_overlaid_plot(plot_data)
 
 
