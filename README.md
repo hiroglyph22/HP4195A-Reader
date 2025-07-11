@@ -77,10 +77,9 @@ python -m pytest
     - [x]  Select which amplitudes to show on final window
 - [x]  Put UI generating function calls in UI_generator
 - [x]  Add initial test suite
-- [ ]  Update test_set_output_power in tests
-- [ ]  Add testing sweeping range of amplitudes
+- [x]  Add testing sweeping range of amplitudes
 - [ ]  Clean up hp4195a_interface.py
-- [ ]  Be more exact on the time of the sweeps
+- [x]  Be more exact on the time of the sweeps
 - [ ]  Use ENUMS instead of strings for commands
 - [ ]  Change pause and resume button to start and pause (auto updating)
 - [ ]  Button for initial setup of the machines

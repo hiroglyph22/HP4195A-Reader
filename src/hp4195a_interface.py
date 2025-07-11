@@ -105,7 +105,7 @@ class hp4195a_interface(multiprocessing.Process):
         elif command == 'low_res_sweep':
             self.logger.info('Starting low resolution sweep')
             self.send_command('RBW = 100 HZ')
-            if self.single_sweep(45):
+            if self.single_sweep(41):
                 self.message_queue.put(True)
             self.send_command('RBW = 300 HZ')
 
@@ -118,7 +118,7 @@ class hp4195a_interface(multiprocessing.Process):
             resolution = params["resolution"]
 
             if resolution == 10:
-                sleep_duration = 222
+                sleep_duration = 218
             else: # Default to 100 Hz
                 sleep_duration = 41
 

@@ -11,12 +11,19 @@ from src.hp4195a_interface import hp4195a_interface
 @pytest.fixture
 def queues():
     """Provides a dictionary of mock queues for testing."""
-    return {
+    queue_dict = {
         "command": Queue(),
         "message": Queue(),
         "data": Queue(),
         "logging": Queue()
     }
+    
+    yield queue_dict
+    
+    # Cleanup: Close all queues to prevent resource warnings
+    for queue in queue_dict.values():
+        queue.close()
+        queue.join_thread()
 
 @pytest.fixture
 def app(qtbot, queues, mocker):
@@ -59,14 +66,21 @@ def managed_backend():
     backend_process.start()
 
     # Yield the queues to the test
-    yield {
+    queue_dict = {
         "command": command_queue,
         "message": message_queue,
         "data": data_queue,
         "logging": logging_queue
     }
+    
+    yield queue_dict
 
     # Teardown: This code runs after the test finishes
     print("\nTerminating backend process...")
     backend_process.terminate()
     backend_process.join() # Wait for the process to fully close
+    
+    # Cleanup: Close all queues to prevent resource warnings
+    for queue in queue_dict.values():
+        queue.close()
+        queue.join_thread()
