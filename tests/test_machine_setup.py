@@ -348,16 +348,21 @@ def test_quick_setup_with_all_fields(mock_window):
         mock_window.apply_settings()
 
         # 5. Verify the command was sent correctly
-        call_args, _ = mock_window.command_queue.put.call_args
-        command, sent_settings = call_args[0]
+        # The command queue should have been called twice: once for command, once for settings
+        assert mock_window.command_queue.put.call_count == 2
+        
+        # Get the calls made to the command queue
+        calls = mock_window.command_queue.put.call_args_list
+        command_call = calls[0][0][0]  # First call argument
+        settings_call = calls[1][0][0]  # Second call argument
 
-        assert command == 'apply_machine_settings'
-        assert sent_settings['center_frequency'] == 2000000.0
-        assert sent_settings['span'] == 100000.0
-        assert sent_settings['start_frequency'] == 1900000.0
-        assert sent_settings['stop_frequency'] == 2100000.0
-        assert sent_settings['resolution_bandwidth'] == 1000.0
-        assert sent_settings['oscillator_1_amplitude'] == -15.0
+        assert command_call == 'apply_machine_settings'
+        assert settings_call['center_frequency'] == 2000000.0
+        assert settings_call['span'] == 100000.0
+        assert settings_call['start_frequency'] == 1900000.0
+        assert settings_call['stop_frequency'] == 2100000.0
+        assert settings_call['resolution_bandwidth'] == 1000.0
+        assert settings_call['oscillator_1_amplitude'] == -15.0
         print("✓ All settings applied correctly via command queue")
 
 def main():

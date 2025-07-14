@@ -339,7 +339,9 @@ class MachineValuesWindow(QtWidgets.QDialog):
                         return
         
         if new_settings:
-            self.command_queue.put(('apply_machine_settings', new_settings))
+            # Send command string first, then settings dictionary
+            self.command_queue.put('apply_machine_settings')
+            self.command_queue.put(new_settings)
             self.show_info("Settings have been sent to the instrument. Use 'Refresh Values' to confirm.")
         else:
             self.show_info("No changes to apply.")
@@ -380,10 +382,20 @@ class MachineValuesWindow(QtWidgets.QDialog):
             # Wait for response
             if self.message_queue.get(timeout=5):  # Wait up to 5 seconds
                 # Get the values dictionary from data queue
-                values_dict = self.data_queue.get(timeout=5)
-                self.machine_values.update(values_dict)
-                self.machine_values['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                self.update_values_display()
+                try:
+                    values_dict = self.data_queue.get(timeout=5)
+                    
+                    # Validate that we received a proper dictionary
+                    if isinstance(values_dict, dict):
+                        self.machine_values.update(values_dict)
+                        self.machine_values['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_values_display()
+                        self.show_info("Machine values refreshed successfully.")
+                    else:
+                        self.show_error(f"Invalid data received from instrument: expected dictionary, got {type(values_dict)}")
+                        
+                except Exception as e:
+                    self.show_error(f"Error processing data from instrument: {str(e)}")
             else:
                 self.show_error("Failed to retrieve machine values from instrument")
                 

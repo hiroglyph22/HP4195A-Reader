@@ -88,7 +88,7 @@ class InstrumentControls:
                 self.graph.clear_q_factor_data()
                 self.graph.peak_freq = None
                 self.graph.peak_mag = None
-                self.graph.plot()
+                self.graph.plot(force_refresh=True)
 
     def send_command(self):
         command = self.command_box.text()

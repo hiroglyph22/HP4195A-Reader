@@ -85,19 +85,28 @@ class PlotCanvas(FigureCanvas):
         self.mag_ax.grid(color='gray', linestyle='-', linewidth=0.5)
         self.fig.tight_layout(rect=[0.05, 0, 0.95, 1])
 
-    def plot(self):
+    def plot(self, force_refresh=False):
         if not self.persist:
             self.mag_ax.clear()
             self.phase_ax.clear()
 
-        try:
-            # Try to get data without blocking
-            self.mag_data = self.data_queue.get_nowait()
-            self.phase_data = self.data_queue.get_nowait()
-            self.freq_data = self.data_queue.get_nowait()
-        except Empty:
-            # If the queue is empty, just redraw the existing data
-            pass
+        # If force_refresh is True or we don't have real data yet, try to get fresh data
+        if force_refresh or (self.data_queue and (not hasattr(self, 'mag_data') or len(self.mag_data) <= 1 or all(x == 0 for x in self.mag_data))):
+            try:
+                # Try to get data with a short timeout
+                import queue
+                self.mag_data = self.data_queue.get(timeout=1)
+                self.phase_data = self.data_queue.get(timeout=1) 
+                self.freq_data = self.data_queue.get(timeout=1)
+            except (Empty, queue.Empty):
+                # If no new data available, try get_nowait for any remaining data
+                try:
+                    self.mag_data = self.data_queue.get_nowait()
+                    self.phase_data = self.data_queue.get_nowait()
+                    self.freq_data = self.data_queue.get_nowait()
+                except (Empty, queue.Empty):
+                    # If the queue is empty, just redraw the existing data
+                    pass
 
         self.apply_styles()
         

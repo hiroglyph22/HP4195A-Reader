@@ -19,7 +19,7 @@ class TestCommands:
         assert Commands.SWEEPING_RANGE_OF_AMPLITUDES.value == "sweeping_range_of_amplitudes"
         assert Commands.SEND_COMMAND.value == "send_command"
         assert Commands.GET_MACHINE_VALUES.value == "get_machine_values"
-        assert Commands.INITIAL_SETUP.value == "initial_setup"
+        assert Commands.APPLY_MACHINE_SETTINGS.value == "apply_machine_settings"
     
     def test_commands_are_unique(self):
         """Test that all command values are unique."""
@@ -30,7 +30,7 @@ class TestCommands:
         """Test that new commands follow proper naming conventions."""
         # Test that new machine-related commands are properly formatted
         assert Commands.GET_MACHINE_VALUES.value == "get_machine_values"
-        assert Commands.INITIAL_SETUP.value == "initial_setup"
+        assert Commands.APPLY_MACHINE_SETTINGS.value == "apply_machine_settings"
         
         # Ensure they use underscores, not hyphens or spaces
         for cmd in Commands:
@@ -43,7 +43,7 @@ class TestCommands:
             "CONNECT", "DISCONNECT", "START_ACQUISITION", 
             "SET_CENTER_AND_SPAN", "SET_START_STOP", "SET_CENTER_FREQUENCY",
             "LOW_RES_SWEEP", "SWEEPING_RANGE_OF_AMPLITUDES", "SEND_COMMAND",
-            "GET_MACHINE_VALUES", "INITIAL_SETUP"
+            "GET_MACHINE_VALUES", "APPLY_MACHINE_SETTINGS"
         }
         actual_commands = {cmd.name for cmd in Commands}
         assert actual_commands == expected_commands
