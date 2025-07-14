@@ -317,6 +317,49 @@ def test_machine_values_window():
     except Exception as e:
         pytest.fail(f"MachineValuesWindow test failed: {e}")
 
+def test_quick_setup_with_all_fields(mock_window):
+    """Test the quick setup functionality with all available input fields."""
+    print("\nTesting Quick Setup with all fields...")
+
+    # Mock the message box to prevent it from blocking test execution
+    with patch('gui.machine_values_window.QtWidgets.QMessageBox.information'):
+        # 1. Simulate user entering values into all quick setup fields
+        mock_window.center_freq_input.setText("2000000")    # 2 MHz
+        mock_window.span_input.setText("100000")            # 100 kHz
+        mock_window.start_freq_input.setText("1900000")     # 1.9 MHz (explicit)
+        mock_window.stop_freq_input.setText("2100000")      # 2.1 MHz (explicit)
+        mock_window.resolution_bw_input.setText("1000")     # 1 kHz
+        mock_window.osc1_amplitude_input.setText("-15")     # -15 dBm
+
+        # 2. User clicks the "Populate Table" button
+        mock_window.populate_from_quick_setup()
+
+        # 3. Verify that all values are correctly updated
+        assert mock_window.machine_values['center_frequency'] == 2000000.0
+        assert mock_window.machine_values['span'] == 100000.0
+        assert mock_window.machine_values['start_frequency'] == 1900000.0  # Explicit value
+        assert mock_window.machine_values['stop_frequency'] == 2100000.0   # Explicit value
+        assert mock_window.machine_values['resolution_bandwidth'] == 1000.0
+        assert mock_window.machine_values['oscillator_1_amplitude'] == -15.0
+        print("✓ All Quick Setup fields populated correctly")
+
+        # 4. Test applying the settings
+        mock_window.update_values_display()
+        mock_window.apply_settings()
+
+        # 5. Verify the command was sent correctly
+        call_args, _ = mock_window.command_queue.put.call_args
+        command, sent_settings = call_args[0]
+
+        assert command == 'apply_machine_settings'
+        assert sent_settings['center_frequency'] == 2000000.0
+        assert sent_settings['span'] == 100000.0
+        assert sent_settings['start_frequency'] == 1900000.0
+        assert sent_settings['stop_frequency'] == 2100000.0
+        assert sent_settings['resolution_bandwidth'] == 1000.0
+        assert sent_settings['oscillator_1_amplitude'] == -15.0
+        print("✓ All settings applied correctly via command queue")
+
 def main():
     """Run all tests."""
     print("HP4195A Machine Setup Feature Test")

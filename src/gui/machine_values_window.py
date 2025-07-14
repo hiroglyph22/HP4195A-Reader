@@ -119,6 +119,14 @@ class MachineValuesWindow(QtWidgets.QDialog):
         self.stop_freq_input = QtWidgets.QLineEdit()
         self.stop_freq_input.setPlaceholderText("Auto-calculated if empty")
         quick_setup_layout.addRow("Stop Frequency (Hz):", self.stop_freq_input)
+
+        self.resolution_bw_input = QtWidgets.QLineEdit()
+        self.resolution_bw_input.setPlaceholderText("e.g., 1000 for 1 kHz")
+        quick_setup_layout.addRow("Resolution Bandwidth (Hz):", self.resolution_bw_input)
+
+        self.osc1_amplitude_input = QtWidgets.QLineEdit()
+        self.osc1_amplitude_input.setPlaceholderText("e.g., -10 for -10 dBm")
+        quick_setup_layout.addRow("Oscillator 1 Amplitude (dBm):", self.osc1_amplitude_input)
         
         populate_button = QtWidgets.QPushButton("Populate Table from Quick Setup")
         populate_button.setToolTip("Use the values above to fill the settings table below.")
@@ -195,6 +203,8 @@ class MachineValuesWindow(QtWidgets.QDialog):
         span_str = self.span_input.text()
         start_freq_str = self.start_freq_input.text()
         stop_freq_str = self.stop_freq_input.text()
+        resolution_bw_str = self.resolution_bw_input.text()
+        osc1_amplitude_str = self.osc1_amplitude_input.text()
 
         center_freq, span = None, None
 
@@ -235,6 +245,22 @@ class MachineValuesWindow(QtWidgets.QDialog):
                 updates['stop_frequency'] = float(stop_freq_str)
             except ValueError:
                 self.show_error("Invalid Stop Frequency. Must be a number.")
+                return
+
+        # Handle resolution bandwidth
+        if resolution_bw_str:
+            try:
+                updates['resolution_bandwidth'] = float(resolution_bw_str)
+            except ValueError:
+                self.show_error("Invalid Resolution Bandwidth. Must be a number.")
+                return
+
+        # Handle oscillator 1 amplitude
+        if osc1_amplitude_str:
+            try:
+                updates['oscillator_1_amplitude'] = float(osc1_amplitude_str)
+            except ValueError:
+                self.show_error("Invalid Oscillator 1 Amplitude. Must be a number.")
                 return
 
         # Batch update the internal state and refresh the display
