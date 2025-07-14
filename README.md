@@ -16,6 +16,7 @@ A Python program for connecting to and interfacing with a HP4195A Network/Spectr
 - Matplotlib
 - Markdown
 - cx_Freeze
+- Scipy
 
 ### Supporting Documents
 The following documents provide useful information regarding the 4195A Network/Spectrum Analyser and the Prologix GPIB-ETHERNET Controller including GPIB command definitions and data register names:
@@ -26,10 +27,18 @@ The following documents provide useful information regarding the 4195A Network/S
 
 ### Installing
 
-To run the program install the dependencies as specified above using pip, conda or a similar package management system. Then clone this repository, navigate to the project directory in a command terminal and type
+To run the program install the dependencies listed in requirements.txt using pip, conda or a similar package management system
+
+For example, for pip:
 
 ```
-python hp4195a_reader.py
+pip install -r requirements.txt
+```
+
+Then clone this repository, navigate to the project directory in a command terminal and type
+
+```
+python src/main.py
 ```
 
 The software can also be built into an executable with cx_Freeze. From the project directory run the following command in a terminal window
@@ -37,6 +46,52 @@ The software can also be built into an executable with cx_Freeze. From the proje
 ```
 python setup.py build
 ```
+
+### Testing
+
+```
+python -m pytest
+```
+
+### Todo
+
+- [x]  Get continuous plot
+    - [x]  Automatically updates plot but also needs to automatically acquire data
+- [x]  Auto Span and Center functionality
+    - [x]  Find peak of the graph
+    - [x]  Add pause and resume auto-updating
+    - [x]  Figure out how to span with GPIB
+    - [x]  Figure out how to center with GPIB
+    - [x]  Get estimated input from user
+        - [x]  Add button
+    - [x]  Do a single sweep at 10 Hz
+- [x]  Auto Span and Center Update
+    - [x]  Add additional low-resolution sweep that makes it look better
+- [x]  Find how long it takes to sweep given a certain resolution
+- [x]  Finding q-factor
+- [ ]  Overlapping graph
+    - [x]  Get user input for range of frequencies
+    - [x]  Change amplitude and do a sweep per certain amplitude
+    - [x]  Pop up another window for every amplitude
+    - [x]  Have a final window with all the data overlayed
+    - [x]  Select which amplitudes to show on final window
+- [x]  Put UI generating function calls in UI_generator
+- [x]  Add initial test suite
+- [x]  Add testing sweeping range of amplitudes
+- [x]  Clean up hp4195a_interface.py
+- [x]  Be more exact on the time of the sweeps
+- [x]  Use ENUMS instead of strings for commands
+- [x]  Change pause and resume button to start and pause (auto updating)
+- [ ]  Button for initial setup of the machines
+- [ ]  UI that displays all the important values for the machine
+- [ ]  Export all the values of the machine (like span, center, etc.)
+- [ ]  Q-factor for standalone program
+- [ ]  Best-fit lines that remove noise
+- [ ]. Option to not have multiple windows for sweeping range of amplitudes
+- [ ]  Option on final overlay graph and standalone graphing program to modify frequencies and magnitudes, and then export that data in csv
+- [ ]. Automatically create new folder at specified path
+- [ ]. Something that tells you that sweeping is in progress
+- [ ]  More modern UI
 
 ### License
 
