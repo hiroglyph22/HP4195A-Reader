@@ -238,6 +238,16 @@ class UIGenerator:
         save_action.triggered.connect(self.save_file_dialog)
         self.file_menu.addAction(save_action)
         
+        self.file_menu.addSeparator()
+        
+        load_config_action = QtWidgets.QAction('&Load Configuration...', self)
+        load_config_action.setShortcut('Ctrl+O')
+        load_config_action.triggered.connect(self.load_config_dialog)
+        load_config_action.setToolTip('Load machine configuration from CSV or JSON file')
+        self.file_menu.addAction(load_config_action)
+        
+        self.file_menu.addSeparator()
+        
         exit_action = QtWidgets.QAction('E&xit', self)
         exit_action.setShortcut('Ctrl+Q')
         exit_action.triggered.connect(self.close)

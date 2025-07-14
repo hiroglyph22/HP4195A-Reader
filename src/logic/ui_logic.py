@@ -85,3 +85,35 @@ class UiLogic:
                     )
                     
         # If Cancel was clicked, do nothing
+                    
+    def load_config_dialog(self):
+        """Load machine configuration from CSV or JSON file."""
+        config = self.load_config_file_dialog()
+        
+        if config:
+            # Show the loaded configuration in machine values window
+            try:
+                # Import here to avoid circular imports
+                try:
+                    from ..gui.machine_values_window import MachineValuesWindow
+                except ImportError:
+                    from gui.machine_values_window import MachineValuesWindow
+                
+                machine_window = MachineValuesWindow(
+                    parent=self,
+                    command_queue=self.command_queue,
+                    message_queue=self.message_queue,
+                    data_queue=self.data_queue
+                )
+                
+                # Update machine window with loaded config
+                for key, value in config.items():
+                    machine_window.set_machine_value(key, value)
+                
+                machine_window.exec_()
+                
+            except Exception as e:
+                self.show_error_dialog(
+                    "Display Error",
+                    f"Failed to show machine values window: {str(e)}"
+                )

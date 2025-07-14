@@ -18,18 +18,32 @@ class TestCommands:
         assert Commands.LOW_RES_SWEEP.value == "low_res_sweep"
         assert Commands.SWEEPING_RANGE_OF_AMPLITUDES.value == "sweeping_range_of_amplitudes"
         assert Commands.SEND_COMMAND.value == "send_command"
+        assert Commands.GET_MACHINE_VALUES.value == "get_machine_values"
+        assert Commands.INITIAL_SETUP.value == "initial_setup"
     
     def test_commands_are_unique(self):
         """Test that all command values are unique."""
         values = [cmd.value for cmd in Commands]
         assert len(values) == len(set(values)), "Duplicate command values found"
     
+    def test_new_commands_are_properly_formatted(self):
+        """Test that new commands follow proper naming conventions."""
+        # Test that new machine-related commands are properly formatted
+        assert Commands.GET_MACHINE_VALUES.value == "get_machine_values"
+        assert Commands.INITIAL_SETUP.value == "initial_setup"
+        
+        # Ensure they use underscores, not hyphens or spaces
+        for cmd in Commands:
+            assert " " not in cmd.value, f"Command {cmd.name} contains spaces"
+            assert "-" not in cmd.value, f"Command {cmd.name} contains hyphens"
+    
     def test_commands_enum_completeness(self):
         """Test that we have all expected commands."""
         expected_commands = {
             "CONNECT", "DISCONNECT", "START_ACQUISITION", 
             "SET_CENTER_AND_SPAN", "SET_START_STOP", "SET_CENTER_FREQUENCY",
-            "LOW_RES_SWEEP", "SWEEPING_RANGE_OF_AMPLITUDES", "SEND_COMMAND"
+            "LOW_RES_SWEEP", "SWEEPING_RANGE_OF_AMPLITUDES", "SEND_COMMAND",
+            "GET_MACHINE_VALUES", "INITIAL_SETUP"
         }
         actual_commands = {cmd.name for cmd in Commands}
         assert actual_commands == expected_commands
@@ -44,6 +58,24 @@ class TestGPIBCommands:
         assert GPIBCommands.QUERY_MAGNITUDE.value == "A?"
         assert GPIBCommands.QUERY_PHASE.value == "B?"
         assert GPIBCommands.QUERY_FREQUENCY.value == "X?"
+    
+    def test_machine_status_query_commands(self):
+        """Test machine status query commands."""
+        assert GPIBCommands.QUERY_CENTER.value == "CENTER?"
+        assert GPIBCommands.QUERY_SPAN.value == "SPAN?"
+        assert GPIBCommands.QUERY_START.value == "START?"
+        assert GPIBCommands.QUERY_STOP.value == "STOP?"
+        assert GPIBCommands.QUERY_RBW.value == "RBW?"
+        assert GPIBCommands.QUERY_OSC1.value == "OSC1?"
+        
+        # Verify these are valid query commands (end with ?)
+        machine_status_queries = [
+            GPIBCommands.QUERY_CENTER, GPIBCommands.QUERY_SPAN, 
+            GPIBCommands.QUERY_START, GPIBCommands.QUERY_STOP,
+            GPIBCommands.QUERY_RBW, GPIBCommands.QUERY_OSC1
+        ]
+        for query_cmd in machine_status_queries:
+            assert query_cmd.value.endswith("?"), f"{query_cmd.name} should end with '?'"
     
     def test_sweep_commands(self):
         """Test sweep control commands."""
@@ -70,6 +102,25 @@ class TestGPIBCommands:
         """Test resolution bandwidth commands."""
         assert GPIBCommands.RBW.value == "RBW = {} HZ"
         assert GPIBCommands.RBW.value.format(100) == "RBW = 100 HZ"
+    
+    def test_gpib_commands_completeness(self):
+        """Test that all expected GPIB commands are defined."""
+        expected_gpib_commands = {
+            # Query commands
+            "QUERY_IDENTITY", "QUERY_MAGNITUDE", "QUERY_PHASE", "QUERY_FREQUENCY",
+            # Machine status query commands  
+            "QUERY_CENTER", "QUERY_SPAN", "QUERY_START", "QUERY_STOP", "QUERY_RBW", "QUERY_OSC1",
+            # Sweep control commands
+            "SWEEP_MODE_SINGLE", "SWEEP_TRIGGER",
+            # Frequency control commands
+            "CENTER", "SPAN", "START", "STOP",
+            # Amplitude control commands
+            "OSCILLATOR_1",
+            # Resolution bandwidth commands
+            "RBW"
+        }
+        actual_gpib_commands = {cmd.name for cmd in GPIBCommands}
+        assert actual_gpib_commands == expected_gpib_commands
 
 
 class TestSweepTimings:
