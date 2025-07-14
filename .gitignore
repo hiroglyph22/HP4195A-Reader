@@ -206,4 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 /__pycache__
+
+# Other
 hp4195a.log
+HP4195A_config/
