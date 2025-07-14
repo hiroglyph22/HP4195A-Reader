@@ -116,8 +116,8 @@ class HP4195AInterface(multiprocessing.Process):
             self._handle_sweeping_range_of_amplitudes()
         elif command == Commands.GET_MACHINE_VALUES.value:
             self._handle_get_machine_values()
-        elif command == Commands.INITIAL_SETUP.value:
-            self._handle_initial_setup()
+        elif command == Commands.APPLY_MACHINE_SETTINGS.value:
+            self._handle_apply_machine_settings()
         else:
             self.logger.warning(f'Unknown command: {command}')
 
@@ -364,90 +364,53 @@ class HP4195AInterface(multiprocessing.Process):
             self.logger.error(f'Error querying machine values: {e}')
             self.message_queue.put(False)
 
-    def _handle_initial_setup(self) -> None:
-        """Handle initial machine setup with provided configuration."""
-        self.logger.info('Applying initial machine setup')
+    def _handle_apply_machine_settings(self) -> None:
+        """Handle applying a dictionary of settings to the instrument."""
+        self.logger.info('Applying machine settings from GUI')
         
         if not self.instrument:
-            self.logger.error('Cannot apply setup: not connected to instrument')
+            self.logger.error('Cannot apply settings: not connected to instrument')
             self.message_queue.put(False)
             return
             
         try:
-            # Get setup parameters from queue
-            setup_params = self.command_queue.get()
-            
-            # Apply each setting
+            settings = self.command_queue.get()
+            self.logger.info(f"Received settings to apply: {settings}")
+
             success_count = 0
-            total_settings = 0
+            total_settings = len(settings)
+
+            setting_map = {
+                'center_frequency': GPIBCommands.CENTER.value,
+                'span': GPIBCommands.SPAN.value,
+                'start_frequency': GPIBCommands.START.value,
+                'stop_frequency': GPIBCommands.STOP.value,
+                'resolution_bandwidth': GPIBCommands.RBW.value,
+                'oscillator_1_amplitude': GPIBCommands.OSCILLATOR_1.value
+            }
+
+            for key, value in settings.items():
+                if key in setting_map:
+                    try:
+                        command_template = setting_map[key]
+                        self.send_command(command_template.format(value))
+                        self.logger.info(f"Successfully applied {key} = {value}")
+                        success_count += 1
+                    except Exception as e:
+                        self.logger.warning(f"Failed to apply setting {key}={value}: {e}")
             
-            if 'center_frequency' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.CENTER.value.format(setup_params['center_frequency']))
-                    success_count += 1
-                    self.logger.info(f"Set center frequency to {setup_params['center_frequency']} Hz")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set center frequency: {e}")
-                    
-            if 'span' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.SPAN.value.format(setup_params['span']))
-                    success_count += 1
-                    self.logger.info(f"Set span to {setup_params['span']} Hz")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set span: {e}")
-                    
-            if 'start_frequency' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.START.value.format(setup_params['start_frequency']))
-                    success_count += 1
-                    self.logger.info(f"Set start frequency to {setup_params['start_frequency']} Hz")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set start frequency: {e}")
-                    
-            if 'stop_frequency' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.STOP.value.format(setup_params['stop_frequency']))
-                    success_count += 1
-                    self.logger.info(f"Set stop frequency to {setup_params['stop_frequency']} Hz")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set stop frequency: {e}")
-                    
-            if 'resolution_bandwidth' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.RBW.value.format(setup_params['resolution_bandwidth']))
-                    success_count += 1
-                    self.logger.info(f"Set RBW to {setup_params['resolution_bandwidth']} Hz")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set RBW: {e}")
-                    
-            if 'oscillator_1_amplitude' in setup_params:
-                total_settings += 1
-                try:
-                    self.send_command(GPIBCommands.OSCILLATOR_1.value.format(setup_params['oscillator_1_amplitude']))
-                    success_count += 1
-                    self.logger.info(f"Set oscillator 1 amplitude to {setup_params['oscillator_1_amplitude']} dBm")
-                except Exception as e:
-                    self.logger.warning(f"Failed to set oscillator 1 amplitude: {e}")
-            
-            # Report results
             if success_count == total_settings and total_settings > 0:
-                self.logger.info(f'Initial setup completed successfully ({success_count}/{total_settings} settings applied)')
+                self.logger.info(f'Settings applied successfully ({success_count}/{total_settings})')
                 self.message_queue.put(True)
             elif success_count > 0:
-                self.logger.warning(f'Initial setup partially completed ({success_count}/{total_settings} settings applied)')
-                self.message_queue.put(True)  # Partial success is still success
+                self.logger.warning(f'Settings partially applied ({success_count}/{total_settings})')
+                self.message_queue.put(True)
             else:
-                self.logger.error('Initial setup failed - no settings were applied')
+                self.logger.error('Failed to apply any settings.')
                 self.message_queue.put(False)
-                
+
         except Exception as e:
-            self.logger.error(f'Error during initial setup: {e}')
+            self.logger.error(f'Error during machine settings application: {e}')
             self.message_queue.put(False)
                 
     # =========================================================================

@@ -43,6 +43,25 @@ class MachineValuesWindow(QtWidgets.QDialog):
             'last_updated': 'Never'
         }
         
+        self.display_mappings = {
+            'device_id': 'Device ID',
+            'connection_status': 'Connection Status',
+            'center_frequency': 'Center Frequency (Hz)',
+            'span': 'Span (Hz)', 
+            'start_frequency': 'Start Frequency (Hz)',
+            'stop_frequency': 'Stop Frequency (Hz)',
+            'resolution_bandwidth': 'Resolution Bandwidth (Hz)',
+            'oscillator_1_amplitude': 'Oscillator 1 Amplitude (dBm)',
+            'sweep_mode': 'Sweep Mode',
+            'last_updated': 'Last Updated'
+        }
+        self.key_mappings = {v: k for k, v in self.display_mappings.items()}
+
+        self.editable_keys = [
+            'center_frequency', 'span', 'start_frequency', 'stop_frequency',
+            'resolution_bandwidth', 'oscillator_1_amplitude'
+        ]
+        
         self.init_ui()
         
     def init_ui(self):
@@ -99,6 +118,13 @@ class MachineValuesWindow(QtWidgets.QDialog):
         button_group = QtWidgets.QGroupBox("Actions")
         button_layout = QtWidgets.QHBoxLayout()
         
+        self.apply_button = QtWidgets.QPushButton("Apply Settings")
+        self.apply_button.setToolTip("Apply the settings in the table to the instrument")
+        self.apply_button.clicked.connect(self.apply_settings)
+        button_layout.addWidget(self.apply_button)
+        
+        button_layout.addStretch(1)
+
         self.export_csv_button = QtWidgets.QPushButton("Export to CSV")
         self.export_csv_button.setToolTip("Save machine settings to CSV file")
         self.export_csv_button.clicked.connect(self.export_to_csv)
@@ -135,33 +161,23 @@ class MachineValuesWindow(QtWidgets.QDialog):
         
     def update_values_display(self):
         """Update the values table with current machine values."""
-        # Define display-friendly names and formatting
-        display_mappings = {
-            'device_id': 'Device ID',
-            'connection_status': 'Connection Status',
-            'center_frequency': 'Center Frequency (Hz)',
-            'span': 'Span (Hz)', 
-            'start_frequency': 'Start Frequency (Hz)',
-            'stop_frequency': 'Stop Frequency (Hz)',
-            'resolution_bandwidth': 'Resolution Bandwidth (Hz)',
-            'oscillator_1_amplitude': 'Oscillator 1 Amplitude (dBm)',
-            'sweep_mode': 'Sweep Mode',
-            'last_updated': 'Last Updated'
-        }
-        
         self.values_table.setRowCount(len(self.machine_values))
         
         row = 0
         for key, value in self.machine_values.items():
             # Parameter name
-            param_item = QtWidgets.QTableWidgetItem(display_mappings.get(key, key))
+            param_item = QtWidgets.QTableWidgetItem(self.display_mappings.get(key, key))
             param_item.setFlags(param_item.flags() & ~QtCore.Qt.ItemIsEditable)
             self.values_table.setItem(row, 0, param_item)
             
             # Parameter value
             value_str = str(value) if value is not None else "Unknown"
             value_item = QtWidgets.QTableWidgetItem(value_str)
-            value_item.setFlags(value_item.flags() & ~QtCore.Qt.ItemIsEditable)
+            
+            if key in self.editable_keys:
+                value_item.setFlags(value_item.flags() | QtCore.Qt.ItemIsEditable)
+            else:
+                value_item.setFlags(value_item.flags() & ~QtCore.Qt.ItemIsEditable)
             
             # Color coding for connection status
             if key == 'connection_status':
@@ -183,6 +199,41 @@ class MachineValuesWindow(QtWidgets.QDialog):
         else:
             self.connection_label.setStyleSheet("color: orange; padding: 5px; font-weight: bold;")
             
+    def apply_settings(self):
+        """Read settings from the table and apply them to the instrument."""
+        if not self.command_queue:
+            self.show_error("Cannot apply settings: No command queue available.")
+            return
+
+        parent_connected = getattr(self.parent(), 'connected', False) if self.parent() else False
+        if not parent_connected:
+            self.show_error("Cannot apply settings: Not connected to instrument.")
+            return
+
+        new_settings = {}
+        for row in range(self.values_table.rowCount()):
+            param_item = self.values_table.item(row, 0)
+            value_item = self.values_table.item(row, 1)
+            
+            if param_item and value_item:
+                display_name = param_item.text()
+                value_str = value_item.text()
+                
+                key = self.key_mappings.get(display_name)
+                
+                if key and key in self.editable_keys:
+                    try:
+                        new_settings[key] = float(value_str)
+                    except ValueError:
+                        self.show_error(f"Invalid value for {display_name}: '{value_str}'. Must be a number.")
+                        return
+        
+        if new_settings:
+            self.command_queue.put(('apply_machine_settings', new_settings))
+            self.show_info("Settings have been sent to the instrument. Use 'Refresh Values' to confirm.")
+        else:
+            self.show_info("No changes to apply.")
+
     def refresh_values(self):
         """Query the instrument for current values."""
         if not self.command_queue or not self.message_queue or not self.data_queue:
@@ -248,7 +299,7 @@ class MachineValuesWindow(QtWidgets.QDialog):
                     
                     # Write machine values
                     for key, value in self.machine_values.items():
-                        display_name = key.replace('_', ' ').title()
+                        display_name = self.display_mappings.get(key, key.replace('_', ' ').title())
                         writer.writerow([display_name, str(value)])
                         
                 self.show_info(f"Machine values exported successfully to:\n{file_path}")
@@ -305,25 +356,14 @@ class MachineValuesWindow(QtWidgets.QDialog):
                             value = row[1]
                             
                             # Map display names back to internal keys
-                            key_mapping = {
-                                'Device ID': 'device_id',
-                                'Connection Status': 'connection_status',
-                                'Center Frequency (Hz)': 'center_frequency',
-                                'Span (Hz)': 'span',
-                                'Start Frequency (Hz)': 'start_frequency',
-                                'Stop Frequency (Hz)': 'stop_frequency',
-                                'Resolution Bandwidth (Hz)': 'resolution_bandwidth',
-                                'Oscillator 1 Amplitude (Dbm)': 'oscillator_1_amplitude',
-                                'Sweep Mode': 'sweep_mode',
-                                'Last Updated': 'last_updated'
-                            }
-                            
-                            # Find the matching key
-                            key = None
-                            for display_key, internal_key in key_mapping.items():
-                                if display_name == display_key or display_name.lower().replace(' ', '_') == internal_key:
-                                    key = internal_key
-                                    break
+                            key = self.key_mappings.get(display_name)
+
+                            if not key:
+                                # Fallback for slight variations in naming
+                                for d_name, i_key in self.display_mappings.items():
+                                    if display_name.lower().strip() == d_name.lower().strip():
+                                        key = i_key
+                                        break
                             
                             if key:
                                 # Try to convert numeric values
@@ -410,112 +450,3 @@ class MachineValuesWindow(QtWidgets.QDialog):
     def get_machine_values(self) -> Dict[str, Any]:
         """Get current machine values dictionary."""
         return self.machine_values.copy()
-
-
-class InitialSetupDialog(QtWidgets.QDialog):
-    """
-    Dialog for initial machine setup configuration.
-    Allows setting basic parameters before connecting.
-    """
-    
-    def __init__(self, parent=None):
-        super(InitialSetupDialog, self).__init__(parent)
-        self.setup_values = {}
-        self.init_ui()
-        
-    def init_ui(self):
-        """Initialize the setup dialog UI."""
-        self.setWindowTitle("HP4195A Initial Setup")
-        self.setWindowIcon(QtGui.QIcon('assets/icon.png'))
-        self.setModal(True)
-        self.resize(400, 350)
-        
-        layout = QtWidgets.QVBoxLayout()
-        
-        # Title
-        title_label = QtWidgets.QLabel("Initial Machine Setup")
-        title_label.setStyleSheet("font-size: 14px; font-weight: bold; padding: 10px;")
-        title_label.setAlignment(QtCore.Qt.AlignCenter)
-        layout.addWidget(title_label)
-        
-        # Setup form
-        form_layout = QtWidgets.QFormLayout()
-        
-        self.center_freq_input = QtWidgets.QLineEdit()
-        self.center_freq_input.setPlaceholderText("e.g., 1000000 (1 MHz)")
-        form_layout.addRow("Center Frequency (Hz):", self.center_freq_input)
-        
-        self.span_input = QtWidgets.QLineEdit()
-        self.span_input.setPlaceholderText("e.g., 100000 (100 kHz)")
-        self.span_input.setText("10000")  # Default span
-        form_layout.addRow("Span (Hz):", self.span_input)
-        
-        self.start_freq_input = QtWidgets.QLineEdit()
-        self.start_freq_input.setPlaceholderText("e.g., 500000 (500 kHz)")
-        form_layout.addRow("Start Frequency (Hz):", self.start_freq_input)
-        
-        self.stop_freq_input = QtWidgets.QLineEdit()
-        self.stop_freq_input.setPlaceholderText("e.g., 1500000 (1.5 MHz)")
-        form_layout.addRow("Stop Frequency (Hz):", self.stop_freq_input)
-        
-        self.rbw_input = QtWidgets.QComboBox()
-        self.rbw_input.addItems(["10", "30", "100", "300", "1000", "3000"])
-        self.rbw_input.setCurrentText("100")
-        form_layout.addRow("Resolution Bandwidth (Hz):", self.rbw_input)
-        
-        self.osc1_input = QtWidgets.QLineEdit()
-        self.osc1_input.setPlaceholderText("e.g., -10 (dBm)")
-        self.osc1_input.setText("0")  # Default amplitude
-        form_layout.addRow("Oscillator 1 Amplitude (dBm):", self.osc1_input)
-        
-        layout.addLayout(form_layout)
-        
-        # Buttons
-        button_layout = QtWidgets.QHBoxLayout()
-        
-        self.apply_button = QtWidgets.QPushButton("Apply Settings")
-        self.apply_button.clicked.connect(self.apply_settings)
-        button_layout.addWidget(self.apply_button)
-        
-        button_layout.addStretch()
-        
-        self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(self.cancel_button)
-        
-        layout.addLayout(button_layout)
-        self.setLayout(layout)
-        
-    def apply_settings(self):
-        """Apply the configured settings."""
-        try:
-            # Validate inputs
-            values = {}
-            
-            if self.center_freq_input.text():
-                values['center_frequency'] = float(self.center_freq_input.text())
-                
-            if self.span_input.text():
-                values['span'] = float(self.span_input.text())
-                
-            if self.start_freq_input.text():
-                values['start_frequency'] = float(self.start_freq_input.text())
-                
-            if self.stop_freq_input.text():
-                values['stop_frequency'] = float(self.stop_freq_input.text())
-                
-            values['resolution_bandwidth'] = float(self.rbw_input.currentText())
-            
-            if self.osc1_input.text():
-                values['oscillator_1_amplitude'] = float(self.osc1_input.text())
-                
-            self.setup_values = values
-            self.accept()
-            
-        except ValueError as e:
-            QtWidgets.QMessageBox.critical(self, "Invalid Input", 
-                "Please enter valid numeric values for all fields.")
-            
-    def get_setup_values(self):
-        """Get the configured setup values."""
-        return self.setup_values

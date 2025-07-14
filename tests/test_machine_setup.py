@@ -20,7 +20,7 @@ def test_imports():
         
         # Test new commands
         assert hasattr(Commands, 'GET_MACHINE_VALUES')
-        assert hasattr(Commands, 'INITIAL_SETUP')
+        assert hasattr(Commands, 'APPLY_MACHINE_SETTINGS')
         print("✓ New commands found in Constants")
         
         # Test new GPIB queries
@@ -33,7 +33,7 @@ def test_imports():
         return False
     
     try:
-        from gui.machine_values_window import MachineValuesWindow, InitialSetupDialog
+        from gui.machine_values_window import MachineValuesWindow
         print("✓ Machine values window imported successfully")
     except ImportError as e:
         print(f"✗ Machine values window import failed: {e}")
@@ -88,10 +88,10 @@ def main():
     if success:
         print("✓ All tests passed! Machine setup feature is ready.")
         print("\nNew Features Added:")
-        print("- Machine Setup button in main UI")
-        print("- Machine Values display window")
-        print("- Initial Setup configuration dialog")
-        print("- Export to CSV/JSON functionality")
+        print("- Unified machine configuration window for viewing, editing, and applying settings")
+        print("- Editable table for machine parameters")
+        print("- 'Apply Settings' button to send configuration to the instrument")
+        print("- Import/Export to CSV/JSON functionality")
         print("- Tools menu with Machine Setup option")
         print("- New GPIB query commands for machine status")
     else:

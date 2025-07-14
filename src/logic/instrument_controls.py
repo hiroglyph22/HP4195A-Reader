@@ -98,6 +98,18 @@ class InstrumentControls:
         self.response_box.setText(f'{command}: {response}')
         self.command_box.clear()
 
+    def apply_machine_settings(self, settings):
+        """Send a command to apply a dictionary of settings to the instrument."""
+        if self.connected:
+            self.command_queue.put(Commands.APPLY_MACHINE_SETTINGS.value)
+            self.command_queue.put(settings)
+            if self.message_queue.get(timeout=10):
+                self.show_info_dialog("Settings Applied", "Machine settings have been successfully applied.")
+            else:
+                self.show_error_dialog("Application Failed", "Failed to apply settings to the instrument.")
+        else:
+            self.show_error_dialog("Not Connected", "Cannot apply settings, not connected to the instrument.")
+
     def center_on_peak(self):
         if self.graph.peak_freq is not None:
             self.command_queue.put(Commands.SET_CENTER_FREQUENCY.value)

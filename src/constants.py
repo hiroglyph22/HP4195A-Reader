@@ -30,7 +30,7 @@ class Commands(Enum):
     
     # Machine setup and status commands
     GET_MACHINE_VALUES = "get_machine_values"
-    INITIAL_SETUP = "initial_setup"
+    APPLY_MACHINE_SETTINGS = "apply_machine_settings"
 
 
 class GPIBCommands(Enum):
