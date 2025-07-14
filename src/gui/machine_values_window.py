@@ -69,7 +69,7 @@ class MachineValuesWindow(QtWidgets.QDialog):
         self.setWindowTitle("HP4195A Machine Configuration")
         self.setWindowIcon(QtGui.QIcon('assets/icon.png'))
         self.setModal(True)
-        self.resize(600, 500)
+        self.resize(600, 650) # Increased height for the new section
         
         # Main layout
         main_layout = QtWidgets.QVBoxLayout()
@@ -98,6 +98,35 @@ class MachineValuesWindow(QtWidgets.QDialog):
         
         status_group.setLayout(status_layout)
         main_layout.addWidget(status_group)
+
+        # Quick Setup section
+        quick_setup_group = QtWidgets.QGroupBox("Quick Setup")
+        quick_setup_layout = QtWidgets.QFormLayout()
+        quick_setup_layout.setSpacing(10)
+
+        self.center_freq_input = QtWidgets.QLineEdit()
+        self.center_freq_input.setPlaceholderText("e.g., 1000000 for 1 MHz")
+        quick_setup_layout.addRow("Center Frequency (Hz):", self.center_freq_input)
+
+        self.span_input = QtWidgets.QLineEdit()
+        self.span_input.setPlaceholderText("e.g., 10000 for 10 kHz")
+        quick_setup_layout.addRow("Span (Hz):", self.span_input)
+
+        self.start_freq_input = QtWidgets.QLineEdit()
+        self.start_freq_input.setPlaceholderText("Auto-calculated if empty")
+        quick_setup_layout.addRow("Start Frequency (Hz):", self.start_freq_input)
+
+        self.stop_freq_input = QtWidgets.QLineEdit()
+        self.stop_freq_input.setPlaceholderText("Auto-calculated if empty")
+        quick_setup_layout.addRow("Stop Frequency (Hz):", self.stop_freq_input)
+        
+        populate_button = QtWidgets.QPushButton("Populate Table from Quick Setup")
+        populate_button.setToolTip("Use the values above to fill the settings table below.")
+        populate_button.clicked.connect(self.populate_from_quick_setup)
+        quick_setup_layout.addRow(populate_button)
+
+        quick_setup_group.setLayout(quick_setup_layout)
+        main_layout.addWidget(quick_setup_group)
         
         # Values table
         values_group = QtWidgets.QGroupBox("Machine Settings")
@@ -158,7 +187,62 @@ class MachineValuesWindow(QtWidgets.QDialog):
         
         # Initial population of table
         self.update_values_display()
+
+    def populate_from_quick_setup(self):
+        """Populate the machine settings table from the quick setup inputs."""
+        updates = {}
+        center_freq_str = self.center_freq_input.text()
+        span_str = self.span_input.text()
+        start_freq_str = self.start_freq_input.text()
+        stop_freq_str = self.stop_freq_input.text()
+
+        center_freq, span = None, None
+
+        # Validate and gather values
+        if center_freq_str:
+            try:
+                center_freq = float(center_freq_str)
+                updates['center_frequency'] = center_freq
+            except ValueError:
+                self.show_error("Invalid Center Frequency. Must be a number.")
+                return
+
+        if span_str:
+            try:
+                span = float(span_str)
+                updates['span'] = span
+            except ValueError:
+                self.show_error("Invalid Span. Must be a number.")
+                return
         
+        # Auto-calculate start/stop if they are empty and center/span are provided
+        if center_freq is not None and span is not None:
+            if not start_freq_str:
+                updates['start_frequency'] = center_freq - (span / 2)
+            if not stop_freq_str:
+                updates['stop_frequency'] = center_freq + (span / 2)
+
+        # Overwrite with explicit values if provided
+        if start_freq_str:
+            try:
+                updates['start_frequency'] = float(start_freq_str)
+            except ValueError:
+                self.show_error("Invalid Start Frequency. Must be a number.")
+                return
+
+        if stop_freq_str:
+            try:
+                updates['stop_frequency'] = float(stop_freq_str)
+            except ValueError:
+                self.show_error("Invalid Stop Frequency. Must be a number.")
+                return
+
+        # Batch update the internal state and refresh the display
+        self.machine_values.update(updates)
+        self.update_values_display()
+        
+        self.show_info("Table populated. Review and click 'Apply Settings' to send to instrument.")
+            
     def update_values_display(self):
         """Update the values table with current machine values."""
         self.values_table.setRowCount(len(self.machine_values))
