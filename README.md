@@ -69,7 +69,7 @@ python -m pytest
     - [x]  Add additional low-resolution sweep that makes it look better
 - [x]  Find how long it takes to sweep given a certain resolution
 - [x]  Finding q-factor
-- [ ]  Overlapping graph
+- [x]  Overlapping graph
     - [x]  Get user input for range of frequencies
     - [x]  Change amplitude and do a sweep per certain amplitude
     - [x]  Pop up another window for every amplitude
@@ -82,16 +82,12 @@ python -m pytest
 - [x]  Be more exact on the time of the sweeps
 - [x]  Use ENUMS instead of strings for commands
 - [x]  Change pause and resume button to start and pause (auto updating)
-- [ ]  Button for initial setup of the machines
-- [ ]  UI that displays all the important values for the machine
-- [ ]  Export all the values of the machine (like span, center, etc.)
+- [x]  Button for initial setup of the machines
+- [x]  UI that displays all the important values for the machine
+- [x]  Export all the values of the machine (like span, center, etc.)
 - [ ]  Q-factor for standalone program
 - [ ]  Best-fit lines that remove noise
-- [ ]. Option to not have multiple windows for sweeping range of amplitudes
-- [ ]  Option on final overlay graph and standalone graphing program to modify frequencies and magnitudes, and then export that data in csv
-- [ ]. Automatically create new folder at specified path
-- [ ]. Something that tells you that sweeping is in progress
-- [ ]  More modern UI
+- [ ]  Option to not have multiple windows for sweeping range of amplitudes
 
 ### License
 
