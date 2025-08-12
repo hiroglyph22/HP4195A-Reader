@@ -35,7 +35,7 @@ For example, for pip:
 pip install -r requirements.txt
 ```
 
-Then clone this repository, navigate to the project directory in a command terminal and type
+Then clone this repository, create a "logs" folder on the repository level, and navigate to the project directory in a command terminal and type
 
 ```
 python src/main.py
